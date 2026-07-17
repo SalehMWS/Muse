@@ -229,13 +229,13 @@ func (q *Queries) MarkScheduleFailed(ctx context.Context, arg MarkScheduleFailed
 	return err
 }
 
-const markSchedulePublished = `-- name: MarkSchedulePublished :exec
-UPDATE schedules SET status = 'published', last_error = NULL, updated_at = now()
+const markScheduleQueued = `-- name: MarkScheduleQueued :exec
+UPDATE schedules SET status = 'queued', last_error = NULL, updated_at = now()
 WHERE id = $1
 `
 
-func (q *Queries) MarkSchedulePublished(ctx context.Context, id uuid.UUID) error {
-	_, err := q.db.Exec(ctx, markSchedulePublished, id)
+func (q *Queries) MarkScheduleQueued(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.Exec(ctx, markScheduleQueued, id)
 	return err
 }
 

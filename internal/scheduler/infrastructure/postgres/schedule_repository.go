@@ -71,8 +71,8 @@ func (r *ScheduleRepository) ClaimDue(ctx context.Context, now time.Time, limit 
 	return mapSchedules(rows), nil
 }
 
-func (r *ScheduleRepository) MarkPublished(ctx context.Context, id uuid.UUID) error {
-	return r.queries.MarkSchedulePublished(ctx, id)
+func (r *ScheduleRepository) MarkQueued(ctx context.Context, id uuid.UUID) error {
+	return r.queries.MarkScheduleQueued(ctx, id)
 }
 
 func (r *ScheduleRepository) MarkFailed(ctx context.Context, id uuid.UUID, reason string) error {

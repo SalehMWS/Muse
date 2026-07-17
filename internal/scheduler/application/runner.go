@@ -96,8 +96,8 @@ func (r *Runner) process(ctx context.Context, schedule domain.Schedule) {
 		return
 	}
 
-	if err := r.repo.MarkPublished(ctx, schedule.ID); err != nil {
-		r.logger.Error("scheduler: mark published", zap.Error(err))
+	if err := r.repo.MarkQueued(ctx, schedule.ID); err != nil {
+		r.logger.Error("scheduler: mark queued", zap.Error(err))
 	}
 }
 

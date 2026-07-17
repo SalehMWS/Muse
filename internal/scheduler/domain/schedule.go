@@ -11,6 +11,7 @@ type Status string
 const (
 	StatusScheduled  Status = "scheduled"
 	StatusPublishing Status = "publishing"
+	StatusQueued     Status = "queued"
 	StatusPublished  Status = "published"
 	StatusFailed     Status = "failed"
 	StatusCancelled  Status = "cancelled"

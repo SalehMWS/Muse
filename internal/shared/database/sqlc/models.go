@@ -65,6 +65,24 @@ type Publication struct {
 	UpdatedAt          pgtype.Timestamptz `json:"updated_at"`
 }
 
+type Schedule struct {
+	ID                 uuid.UUID          `json:"id"`
+	UserID             uuid.UUID          `json:"user_id"`
+	ContentID          uuid.UUID          `json:"content_id"`
+	InstagramAccountID uuid.UUID          `json:"instagram_account_id"`
+	ScheduledFor       pgtype.Timestamptz `json:"scheduled_for"`
+	Timezone           string             `json:"timezone"`
+	CronExpression     *string            `json:"cron_expression"`
+	MediaType          *string            `json:"media_type"`
+	Status             string             `json:"status"`
+	RetryCount         int32              `json:"retry_count"`
+	MaxRetries         int32              `json:"max_retries"`
+	NextRetryAt        pgtype.Timestamptz `json:"next_retry_at"`
+	LastError          *string            `json:"last_error"`
+	CreatedAt          pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt          pgtype.Timestamptz `json:"updated_at"`
+}
+
 type Session struct {
 	ID               uuid.UUID          `json:"id"`
 	UserID           uuid.UUID          `json:"user_id"`

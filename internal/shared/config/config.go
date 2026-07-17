@@ -30,6 +30,7 @@ type Config struct {
 	Argon2     Argon2
 	Instagram  Instagram
 	AI         AI
+	Scheduler  Scheduler
 }
 
 type App struct {
@@ -117,6 +118,10 @@ type AI struct {
 	Model       string
 	MaxTokens   int
 	HTTPTimeout time.Duration
+}
+
+type Scheduler struct {
+	PollInterval time.Duration
 }
 
 func (r Redis) Addr() string {
@@ -223,6 +228,11 @@ func Load() (*Config, error) {
 		return nil, fmt.Errorf("load config: %w", err)
 	}
 
+	schedulerPollInterval, err := getEnvDuration("SCHEDULER_POLL_INTERVAL", 10*time.Second)
+	if err != nil {
+		return nil, fmt.Errorf("load config: %w", err)
+	}
+
 	cfg := &Config{
 		App: App{
 			Name: getEnv("APP_NAME", "novaflow"),
@@ -289,6 +299,9 @@ func Load() (*Config, error) {
 			Model:       getEnv("AI_MODEL", "llama-3.1-8b-instant"),
 			MaxTokens:   aiMaxTokens,
 			HTTPTimeout: aiHTTPTimeout,
+		},
+		Scheduler: Scheduler{
+			PollInterval: schedulerPollInterval,
 		},
 	}
 

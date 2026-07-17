@@ -13,6 +13,7 @@ import (
 
 type Module struct {
 	Handler *httpdelivery.Handler
+	Publish *application.PublishUseCase
 }
 
 func New(pool *pgxpool.Pool, cfg config.Instagram, accounts application.AccountReader, contents application.ContentReader) *Module {
@@ -24,6 +25,7 @@ func New(pool *pgxpool.Pool, cfg config.Instagram, accounts application.AccountR
 
 	return &Module{
 		Handler: httpdelivery.NewHandler(publishUC, listUC),
+		Publish: publishUC,
 	}
 }
 

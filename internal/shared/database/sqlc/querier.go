@@ -11,9 +11,12 @@ import (
 )
 
 type Querier interface {
+	CancelSchedule(ctx context.Context, arg CancelScheduleParams) error
+	ClaimDueSchedules(ctx context.Context, arg ClaimDueSchedulesParams) ([]Schedule, error)
 	CreateContent(ctx context.Context, arg CreateContentParams) (Content, error)
 	CreateMedia(ctx context.Context, arg CreateMediaParams) (Medium, error)
 	CreatePublication(ctx context.Context, arg CreatePublicationParams) (Publication, error)
+	CreateSchedule(ctx context.Context, arg CreateScheduleParams) (Schedule, error)
 	CreateSession(ctx context.Context, arg CreateSessionParams) (Session, error)
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
 	DeleteInstagramAccountForUser(ctx context.Context, arg DeleteInstagramAccountForUserParams) error
@@ -22,6 +25,7 @@ type Querier interface {
 	GetContentByIDForUser(ctx context.Context, arg GetContentByIDForUserParams) (Content, error)
 	GetInstagramAccountByIDForUser(ctx context.Context, arg GetInstagramAccountByIDForUserParams) (InstagramAccount, error)
 	GetMediaByIDForContent(ctx context.Context, arg GetMediaByIDForContentParams) (Medium, error)
+	GetScheduleByIDForUser(ctx context.Context, arg GetScheduleByIDForUserParams) (Schedule, error)
 	GetSessionByRefreshTokenHash(ctx context.Context, refreshTokenHash string) (Session, error)
 	GetUserByEmail(ctx context.Context, email string) (User, error)
 	GetUserByID(ctx context.Context, id uuid.UUID) (User, error)
@@ -30,6 +34,11 @@ type Querier interface {
 	ListInstagramAccountsByUser(ctx context.Context, userID uuid.UUID) ([]InstagramAccount, error)
 	ListMediaByContent(ctx context.Context, contentID uuid.UUID) ([]Medium, error)
 	ListPublicationsByContentForUser(ctx context.Context, arg ListPublicationsByContentForUserParams) ([]Publication, error)
+	ListSchedulesByContentForUser(ctx context.Context, arg ListSchedulesByContentForUserParams) ([]Schedule, error)
+	MarkScheduleFailed(ctx context.Context, arg MarkScheduleFailedParams) error
+	MarkSchedulePublished(ctx context.Context, id uuid.UUID) error
+	RescheduleSchedule(ctx context.Context, arg RescheduleScheduleParams) error
+	RetrySchedule(ctx context.Context, arg RetryScheduleParams) error
 	RotateSession(ctx context.Context, arg RotateSessionParams) (Session, error)
 	UpdateContent(ctx context.Context, arg UpdateContentParams) (Content, error)
 	UpdateInstagramAccountToken(ctx context.Context, arg UpdateInstagramAccountTokenParams) (InstagramAccount, error)

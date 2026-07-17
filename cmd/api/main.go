@@ -68,6 +68,8 @@ func run(ctx context.Context) error {
 		return fmt.Errorf("start api: %w", err)
 	}
 
+	go container.Scheduler.Runner.Run(ctx)
+
 	serveErrors := make(chan error, 1)
 	go func() {
 		addr := fmt.Sprintf(":%d", container.Config.HTTP.Port)

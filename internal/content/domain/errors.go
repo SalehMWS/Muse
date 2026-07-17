@@ -10,4 +10,6 @@ var (
 	ErrInvalidStatus     = errors.New("invalid content status")
 	ErrTooManyTags       = errors.New("too many tags")
 	ErrTagTooLong        = errors.New("tag exceeds maximum length")
+	ErrMediaURLRequired  = errors.New("media url is required")
+	ErrInvalidMediaType  = errors.New("invalid media type")
 )

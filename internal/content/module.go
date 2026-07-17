@@ -16,6 +16,7 @@ type Module struct {
 
 func New(pool *pgxpool.Pool, aiProvider aiapp.LLMProvider) *Module {
 	repo := postgres.NewContentRepository(pool)
+	mediaRepo := postgres.NewMediaRepository(pool)
 
 	return &Module{
 		Handler: httpdelivery.NewHandler(
@@ -26,6 +27,9 @@ func New(pool *pgxpool.Pool, aiProvider aiapp.LLMProvider) *Module {
 			application.NewDuplicateUseCase(repo),
 			application.NewListUseCase(repo),
 			application.NewGenerateCaptionUseCase(repo, aiProvider),
+			application.NewAttachMediaUseCase(repo, mediaRepo),
+			application.NewListMediaUseCase(repo, mediaRepo),
+			application.NewDeleteMediaUseCase(repo, mediaRepo),
 		),
 	}
 }

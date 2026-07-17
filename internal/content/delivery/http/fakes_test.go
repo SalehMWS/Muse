@@ -60,3 +60,41 @@ func (f *fakeContentRepository) List(_ context.Context, filter application.ListF
 	}
 	return items, nil
 }
+
+type fakeMediaRepository struct {
+	byID map[uuid.UUID]domain.Media
+}
+
+func newFakeMediaRepository() *fakeMediaRepository {
+	return &fakeMediaRepository{byID: map[uuid.UUID]domain.Media{}}
+}
+
+func (f *fakeMediaRepository) Create(_ context.Context, media domain.Media) (domain.Media, error) {
+	f.byID[media.ID] = media
+	return media, nil
+}
+
+func (f *fakeMediaRepository) FindByIDForContent(_ context.Context, id, contentID uuid.UUID) (domain.Media, error) {
+	media, ok := f.byID[id]
+	if !ok || media.ContentID != contentID {
+		return domain.Media{}, application.ErrMediaNotFound
+	}
+	return media, nil
+}
+
+func (f *fakeMediaRepository) ListByContent(_ context.Context, contentID uuid.UUID) ([]domain.Media, error) {
+	items := make([]domain.Media, 0)
+	for _, media := range f.byID {
+		if media.ContentID == contentID {
+			items = append(items, media)
+		}
+	}
+	return items, nil
+}
+
+func (f *fakeMediaRepository) DeleteForContent(_ context.Context, id, contentID uuid.UUID) error {
+	if media, ok := f.byID[id]; ok && media.ContentID == contentID {
+		delete(f.byID, id)
+	}
+	return nil
+}

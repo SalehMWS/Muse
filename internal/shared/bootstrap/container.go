@@ -16,6 +16,7 @@ import (
 	"github.com/SalehMWS/Muse/internal/publishing"
 	pubcontent "github.com/SalehMWS/Muse/internal/publishing/infrastructure/content"
 	pubinstagram "github.com/SalehMWS/Muse/internal/publishing/infrastructure/instagram"
+	"github.com/SalehMWS/Muse/internal/scheduler"
 	"github.com/SalehMWS/Muse/internal/shared/cache"
 	"github.com/SalehMWS/Muse/internal/shared/config"
 	"github.com/SalehMWS/Muse/internal/shared/database"
@@ -32,6 +33,7 @@ type Container struct {
 	Redis          *redis.Client
 	App            *fiber.App
 	AuthMiddleware fiber.Handler
+	Scheduler      *scheduler.Module
 }
 
 func New(ctx context.Context) (*Container, error) {
@@ -98,6 +100,9 @@ func New(ctx context.Context) (*Container, error) {
 	)
 	publishingModule.RegisterRoutes(apiV1, authModule.Middleware)
 
+	schedulerModule := scheduler.New(db, publishingModule.Publish, log, cfg.Scheduler.PollInterval)
+	schedulerModule.RegisterRoutes(apiV1, authModule.Middleware)
+
 	return &Container{
 		Config:         cfg,
 		Logger:         log,
@@ -105,6 +110,7 @@ func New(ctx context.Context) (*Container, error) {
 		Redis:          redisClient,
 		App:            app,
 		AuthMiddleware: authModule.Middleware,
+		Scheduler:      schedulerModule,
 	}, nil
 }
 

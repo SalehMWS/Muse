@@ -157,3 +157,17 @@ GET    /api/v1/contents/:id/publications         publishing history for a conten
 Publishing is synchronous (background workers arrive in a later milestone) and
 needs live Meta credentials; media is referenced by public URL — Instagram's
 Content Publishing API fetches it directly.
+
+Milestone 6 — Scheduler complete. Schedule a content item to publish at a
+future time or on a recurring cron schedule (timezone-aware, with retry
+backoff). An in-process runner polls for due schedules and drives the publish
+flow automatically.
+
+```
+POST   /api/v1/contents/:id/schedule              schedule a publish (scheduled_for or cron_expression + timezone)
+GET    /api/v1/contents/:id/schedules             list a content item's schedules
+DELETE /api/v1/contents/:id/schedules/:scheduleId cancel a pending schedule
+```
+
+The runner is in-process (poll interval `SCHEDULER_POLL_INTERVAL`); durable
+queue-backed workers arrive in a later milestone.

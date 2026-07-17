@@ -41,6 +41,30 @@ type InstagramAccount struct {
 	UpdatedAt       pgtype.Timestamptz `json:"updated_at"`
 }
 
+type Medium struct {
+	ID        uuid.UUID          `json:"id"`
+	ContentID uuid.UUID          `json:"content_id"`
+	Url       string             `json:"url"`
+	MediaType string             `json:"media_type"`
+	Position  int32              `json:"position"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+}
+
+type Publication struct {
+	ID                 uuid.UUID          `json:"id"`
+	UserID             uuid.UUID          `json:"user_id"`
+	ContentID          uuid.UUID          `json:"content_id"`
+	InstagramAccountID uuid.UUID          `json:"instagram_account_id"`
+	Platform           string             `json:"platform"`
+	PlatformPostID     *string            `json:"platform_post_id"`
+	Status             string             `json:"status"`
+	Permalink          *string            `json:"permalink"`
+	ResponseJson       []byte             `json:"response_json"`
+	PublishedAt        pgtype.Timestamptz `json:"published_at"`
+	CreatedAt          pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt          pgtype.Timestamptz `json:"updated_at"`
+}
+
 type Session struct {
 	ID               uuid.UUID          `json:"id"`
 	UserID           uuid.UUID          `json:"user_id"`

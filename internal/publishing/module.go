@@ -1,0 +1,33 @@
+package publishing
+
+import (
+	"github.com/gofiber/fiber/v2"
+	"github.com/jackc/pgx/v5/pgxpool"
+
+	"github.com/SalehMWS/Muse/internal/publishing/application"
+	httpdelivery "github.com/SalehMWS/Muse/internal/publishing/delivery/http"
+	"github.com/SalehMWS/Muse/internal/publishing/infrastructure/meta"
+	"github.com/SalehMWS/Muse/internal/publishing/infrastructure/postgres"
+	"github.com/SalehMWS/Muse/internal/shared/config"
+)
+
+type Module struct {
+	Handler *httpdelivery.Handler
+}
+
+func New(pool *pgxpool.Pool, cfg config.Instagram, accounts application.AccountReader, contents application.ContentReader) *Module {
+	repo := postgres.NewPublicationRepository(pool)
+	client := meta.NewPublishClient(cfg.GraphBaseURL, cfg.HTTPTimeout)
+
+	publishUC := application.NewPublishUseCase(accounts, contents, client, repo)
+	listUC := application.NewListPublicationsUseCase(repo)
+
+	return &Module{
+		Handler: httpdelivery.NewHandler(publishUC, listUC),
+	}
+}
+
+func (m *Module) RegisterRoutes(router fiber.Router, requireAuth fiber.Handler) {
+	group := router.Group("/contents")
+	httpdelivery.RegisterRoutes(group, m.Handler, requireAuth)
+}

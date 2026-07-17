@@ -140,3 +140,20 @@ POST /api/v1/contents/:id/caption   generate a caption + hashtags and save them
 
 Configure the provider via `AI_BASE_URL` / `AI_MODEL` / `AI_API_KEY` (Groq by
 default; see configs/.env.example for the OpenRouter variant).
+
+Milestone 5 — Publishing complete. Register media on a content item, then
+publish it to a connected Instagram account through the Graph Content
+Publishing API (image, carousel, or reel — inferred or chosen), with a
+persisted publication history.
+
+```
+POST   /api/v1/contents/:id/media                register a media URL on a content item
+GET    /api/v1/contents/:id/media                list a content item's media
+DELETE /api/v1/contents/:id/media/:mediaId       remove a media entry
+POST   /api/v1/contents/:id/publish              publish to a connected Instagram account
+GET    /api/v1/contents/:id/publications         publishing history for a content item
+```
+
+Publishing is synchronous (background workers arrive in a later milestone) and
+needs live Meta credentials; media is referenced by public URL — Instagram's
+Content Publishing API fetches it directly.

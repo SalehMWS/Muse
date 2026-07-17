@@ -7,13 +7,13 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/zap"
 
-	pubapp "github.com/SalehMWS/Muse/internal/publishing/application"
 	"github.com/SalehMWS/Muse/internal/scheduler/application"
 	httpdelivery "github.com/SalehMWS/Muse/internal/scheduler/delivery/http"
 	schedcontent "github.com/SalehMWS/Muse/internal/scheduler/infrastructure/content"
 	"github.com/SalehMWS/Muse/internal/scheduler/infrastructure/cron"
 	"github.com/SalehMWS/Muse/internal/scheduler/infrastructure/postgres"
-	schedpublishing "github.com/SalehMWS/Muse/internal/scheduler/infrastructure/publishing"
+	schedqueue "github.com/SalehMWS/Muse/internal/scheduler/infrastructure/queue"
+	workerapp "github.com/SalehMWS/Muse/internal/worker/application"
 )
 
 type Module struct {
@@ -21,10 +21,10 @@ type Module struct {
 	Runner  *application.Runner
 }
 
-func New(pool *pgxpool.Pool, publish *pubapp.PublishUseCase, logger *zap.Logger, interval time.Duration) *Module {
+func New(pool *pgxpool.Pool, enqueuer workerapp.Enqueuer, logger *zap.Logger, interval time.Duration) *Module {
 	repo := postgres.NewScheduleRepository(pool)
 	cronParser := cron.New()
-	publisher := schedpublishing.NewPublisher(publish)
+	publisher := schedqueue.NewPublisher(enqueuer, 3)
 	contentChecker := schedcontent.NewContentChecker(pool)
 
 	createUC := application.NewCreateScheduleUseCase(repo, cronParser, contentChecker)

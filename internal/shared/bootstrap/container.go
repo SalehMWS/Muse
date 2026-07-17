@@ -24,6 +24,7 @@ import (
 	applogger "github.com/SalehMWS/Muse/internal/shared/logger"
 	"github.com/SalehMWS/Muse/internal/shared/middleware"
 	"github.com/SalehMWS/Muse/internal/shared/response"
+	"github.com/SalehMWS/Muse/internal/worker"
 )
 
 type Container struct {
@@ -34,6 +35,7 @@ type Container struct {
 	App            *fiber.App
 	AuthMiddleware fiber.Handler
 	Scheduler      *scheduler.Module
+	Worker         *worker.Module
 }
 
 func New(ctx context.Context) (*Container, error) {
@@ -100,7 +102,15 @@ func New(ctx context.Context) (*Container, error) {
 	)
 	publishingModule.RegisterRoutes(apiV1, authModule.Middleware)
 
-	schedulerModule := scheduler.New(db, publishingModule.Publish, log, cfg.Scheduler.PollInterval)
+	workerModule, err := worker.New(redisClient, publishingModule.Publish, log, cfg.Worker.Concurrency)
+	if err != nil {
+		_ = redisClient.Close()
+		db.Close()
+		return nil, fmt.Errorf("bootstrap: %w", err)
+	}
+	workerModule.RegisterRoutes(apiV1, authModule.Middleware)
+
+	schedulerModule := scheduler.New(db, workerModule.Enqueuer, log, cfg.Scheduler.PollInterval)
 	schedulerModule.RegisterRoutes(apiV1, authModule.Middleware)
 
 	return &Container{
@@ -111,6 +121,7 @@ func New(ctx context.Context) (*Container, error) {
 		App:            app,
 		AuthMiddleware: authModule.Middleware,
 		Scheduler:      schedulerModule,
+		Worker:         workerModule,
 	}, nil
 }
 

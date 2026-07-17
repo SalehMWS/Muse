@@ -19,7 +19,7 @@ type retryCall struct {
 type fakeScheduleRepository struct {
 	byID        map[uuid.UUID]domain.Schedule
 	dueQueue    [][]domain.Schedule
-	published   []uuid.UUID
+	queued      []uuid.UUID
 	failed      map[uuid.UUID]string
 	retried     map[uuid.UUID]retryCall
 	rescheduled map[uuid.UUID]time.Time
@@ -67,8 +67,8 @@ func (f *fakeScheduleRepository) ClaimDue(_ context.Context, _ time.Time, _ int3
 	return batch, nil
 }
 
-func (f *fakeScheduleRepository) MarkPublished(_ context.Context, id uuid.UUID) error {
-	f.published = append(f.published, id)
+func (f *fakeScheduleRepository) MarkQueued(_ context.Context, id uuid.UUID) error {
+	f.queued = append(f.queued, id)
 	return nil
 }
 

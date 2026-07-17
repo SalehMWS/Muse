@@ -30,8 +30,8 @@ func TestRunner_OneTimeSuccess(t *testing.T) {
 	if publisher.calls != 1 {
 		t.Fatalf("publisher calls = %d, want 1", publisher.calls)
 	}
-	if len(repo.published) != 1 || repo.published[0] != schedule.ID {
-		t.Fatalf("published = %v, want [%v]", repo.published, schedule.ID)
+	if len(repo.queued) != 1 || repo.queued[0] != schedule.ID {
+		t.Fatalf("published = %v, want [%v]", repo.queued, schedule.ID)
 	}
 }
 
@@ -50,7 +50,7 @@ func TestRunner_RecurringReschedules(t *testing.T) {
 	if !ok || !got.Equal(next) {
 		t.Fatalf("rescheduled[%v] = %v, want %v", schedule.ID, got, next)
 	}
-	if len(repo.published) != 0 {
+	if len(repo.queued) != 0 {
 		t.Fatal("recurring schedule should not be marked published")
 	}
 }

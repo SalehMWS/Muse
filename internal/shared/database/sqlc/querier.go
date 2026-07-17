@@ -36,7 +36,7 @@ type Querier interface {
 	ListPublicationsByContentForUser(ctx context.Context, arg ListPublicationsByContentForUserParams) ([]Publication, error)
 	ListSchedulesByContentForUser(ctx context.Context, arg ListSchedulesByContentForUserParams) ([]Schedule, error)
 	MarkScheduleFailed(ctx context.Context, arg MarkScheduleFailedParams) error
-	MarkSchedulePublished(ctx context.Context, id uuid.UUID) error
+	MarkScheduleQueued(ctx context.Context, id uuid.UUID) error
 	RescheduleSchedule(ctx context.Context, arg RescheduleScheduleParams) error
 	RetrySchedule(ctx context.Context, arg RetryScheduleParams) error
 	RotateSession(ctx context.Context, arg RotateSessionParams) (Session, error)

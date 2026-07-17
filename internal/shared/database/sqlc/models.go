@@ -9,6 +9,22 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type InstagramAccount struct {
+	ID              uuid.UUID          `json:"id"`
+	UserID          uuid.UUID          `json:"user_id"`
+	InstagramUserID string             `json:"instagram_user_id"`
+	Username        string             `json:"username"`
+	AccountType     *string            `json:"account_type"`
+	AccessToken     string             `json:"access_token"`
+	TokenExpiresAt  pgtype.Timestamptz `json:"token_expires_at"`
+	Scopes          *string            `json:"scopes"`
+	Status          string             `json:"status"`
+	ConnectedAt     pgtype.Timestamptz `json:"connected_at"`
+	LastRefreshedAt pgtype.Timestamptz `json:"last_refreshed_at"`
+	CreatedAt       pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt       pgtype.Timestamptz `json:"updated_at"`
+}
+
 type Session struct {
 	ID               uuid.UUID          `json:"id"`
 	UserID           uuid.UUID          `json:"user_id"`

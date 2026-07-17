@@ -13,11 +13,16 @@ import (
 type Querier interface {
 	CreateSession(ctx context.Context, arg CreateSessionParams) (Session, error)
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
+	DeleteInstagramAccountForUser(ctx context.Context, arg DeleteInstagramAccountForUserParams) error
 	DeleteSessionByRefreshTokenHash(ctx context.Context, refreshTokenHash string) error
+	GetInstagramAccountByIDForUser(ctx context.Context, arg GetInstagramAccountByIDForUserParams) (InstagramAccount, error)
 	GetSessionByRefreshTokenHash(ctx context.Context, refreshTokenHash string) (Session, error)
 	GetUserByEmail(ctx context.Context, email string) (User, error)
 	GetUserByID(ctx context.Context, id uuid.UUID) (User, error)
+	ListInstagramAccountsByUser(ctx context.Context, userID uuid.UUID) ([]InstagramAccount, error)
 	RotateSession(ctx context.Context, arg RotateSessionParams) (Session, error)
+	UpdateInstagramAccountToken(ctx context.Context, arg UpdateInstagramAccountTokenParams) (InstagramAccount, error)
+	UpsertInstagramAccount(ctx context.Context, arg UpsertInstagramAccountParams) (InstagramAccount, error)
 }
 
 var _ Querier = (*Queries)(nil)

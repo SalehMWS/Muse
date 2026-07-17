@@ -26,6 +26,7 @@ func newTestApp(userID uuid.UUID) *fiber.App {
 
 func newTestAppWithProvider(userID uuid.UUID, provider *fakeLLMProvider) *fiber.App {
 	repo := newFakeContentRepository()
+	mediaRepo := newFakeMediaRepository()
 	handler := httpdelivery.NewHandler(
 		application.NewCreateUseCase(repo),
 		application.NewGetUseCase(repo),
@@ -34,6 +35,9 @@ func newTestAppWithProvider(userID uuid.UUID, provider *fakeLLMProvider) *fiber.
 		application.NewDuplicateUseCase(repo),
 		application.NewListUseCase(repo),
 		application.NewGenerateCaptionUseCase(repo, provider),
+		application.NewAttachMediaUseCase(repo, mediaRepo),
+		application.NewListMediaUseCase(repo, mediaRepo),
+		application.NewDeleteMediaUseCase(repo, mediaRepo),
 	)
 
 	app := fiber.New()
@@ -201,6 +205,47 @@ func TestHandler_GenerateCaptionProviderError(t *testing.T) {
 	status, _ := doJSON(t, app, fiber.MethodPost, "/contents/"+id+"/caption", nil)
 	if status != fiber.StatusBadGateway {
 		t.Fatalf("status = %d, want %d", status, fiber.StatusBadGateway)
+	}
+}
+
+func TestHandler_Media(t *testing.T) {
+	userID := uuid.New()
+	app := newTestApp(userID)
+	id := createContent(t, app, "With media")
+
+	status, body := doJSON(t, app, fiber.MethodPost, "/contents/"+id+"/media", map[string]any{"url": "https://cdn.example.com/a.jpg", "media_type": "image"})
+	if status != fiber.StatusCreated {
+		t.Fatalf("attach status = %d, want %d, body=%v", status, fiber.StatusCreated, body)
+	}
+	data, _ := body["data"].(map[string]any)
+	mediaID, _ := data["id"].(string)
+	if mediaID == "" || data["url"] != "https://cdn.example.com/a.jpg" {
+		t.Fatalf("attach response = %v, unexpected", data)
+	}
+
+	status, listBody := doJSON(t, app, fiber.MethodGet, "/contents/"+id+"/media", nil)
+	if status != fiber.StatusOK {
+		t.Fatalf("list status = %d, want %d", status, fiber.StatusOK)
+	}
+	items, _ := listBody["data"].([]any)
+	if len(items) != 1 {
+		t.Fatalf("list media = %d, want 1", len(items))
+	}
+
+	status, _ = doJSON(t, app, fiber.MethodDelete, "/contents/"+id+"/media/"+mediaID, nil)
+	if status != fiber.StatusNoContent {
+		t.Fatalf("delete status = %d, want %d", status, fiber.StatusNoContent)
+	}
+}
+
+func TestHandler_AttachMediaMissingURL(t *testing.T) {
+	userID := uuid.New()
+	app := newTestApp(userID)
+	id := createContent(t, app, "No url")
+
+	status, _ := doJSON(t, app, fiber.MethodPost, "/contents/"+id+"/media", map[string]any{"media_type": "image"})
+	if status != fiber.StatusUnprocessableEntity {
+		t.Fatalf("status = %d, want %d", status, fiber.StatusUnprocessableEntity)
 	}
 }
 

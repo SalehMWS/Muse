@@ -23,6 +23,9 @@ type Handler struct {
 	duplicate       *application.DuplicateUseCase
 	list            *application.ListUseCase
 	generateCaption *application.GenerateCaptionUseCase
+	attachMedia     *application.AttachMediaUseCase
+	listMedia       *application.ListMediaUseCase
+	deleteMedia     *application.DeleteMediaUseCase
 }
 
 func NewHandler(
@@ -33,6 +36,9 @@ func NewHandler(
 	duplicate *application.DuplicateUseCase,
 	list *application.ListUseCase,
 	generateCaption *application.GenerateCaptionUseCase,
+	attachMedia *application.AttachMediaUseCase,
+	listMedia *application.ListMediaUseCase,
+	deleteMedia *application.DeleteMediaUseCase,
 ) *Handler {
 	return &Handler{
 		create:          create,
@@ -42,6 +48,9 @@ func NewHandler(
 		duplicate:       duplicate,
 		list:            list,
 		generateCaption: generateCaption,
+		attachMedia:     attachMedia,
+		listMedia:       listMedia,
+		deleteMedia:     deleteMedia,
 	}
 }
 
@@ -223,7 +232,7 @@ func optionalQuery(c *fiber.Ctx, key string) *string {
 
 func mapError(err error) error {
 	switch {
-	case errors.Is(err, application.ErrContentNotFound):
+	case errors.Is(err, application.ErrContentNotFound), errors.Is(err, application.ErrMediaNotFound):
 		return apperrors.NewNotFound(err.Error())
 	case errors.Is(err, application.ErrCaptionUnavailable):
 		return apperrors.New(apperrors.CodeExternalAPI, err.Error())
@@ -234,7 +243,9 @@ func mapError(err error) error {
 		errors.Is(err, domain.ErrInvalidVisibility),
 		errors.Is(err, domain.ErrInvalidStatus),
 		errors.Is(err, domain.ErrTooManyTags),
-		errors.Is(err, domain.ErrTagTooLong):
+		errors.Is(err, domain.ErrTagTooLong),
+		errors.Is(err, domain.ErrMediaURLRequired),
+		errors.Is(err, domain.ErrInvalidMediaType):
 		return apperrors.NewValidation(err.Error())
 	default:
 		if _, ok := apperrors.As(err); ok {

@@ -13,6 +13,9 @@ import (
 	"github.com/SalehMWS/Muse/internal/auth"
 	"github.com/SalehMWS/Muse/internal/content"
 	"github.com/SalehMWS/Muse/internal/instagram"
+	"github.com/SalehMWS/Muse/internal/publishing"
+	pubcontent "github.com/SalehMWS/Muse/internal/publishing/infrastructure/content"
+	pubinstagram "github.com/SalehMWS/Muse/internal/publishing/infrastructure/instagram"
 	"github.com/SalehMWS/Muse/internal/shared/cache"
 	"github.com/SalehMWS/Muse/internal/shared/config"
 	"github.com/SalehMWS/Muse/internal/shared/database"
@@ -80,6 +83,20 @@ func New(ctx context.Context) (*Container, error) {
 	aiProvider := ai.NewProvider(cfg.AI, log)
 	contentModule := content.New(db, aiProvider)
 	contentModule.RegisterRoutes(apiV1, authModule.Middleware)
+
+	tokenService, err := instagram.NewTokenService(db, cfg.Instagram)
+	if err != nil {
+		_ = redisClient.Close()
+		db.Close()
+		return nil, fmt.Errorf("bootstrap: %w", err)
+	}
+	publishingModule := publishing.New(
+		db,
+		cfg.Instagram,
+		pubinstagram.NewAccountReader(tokenService),
+		pubcontent.NewContentReader(db),
+	)
+	publishingModule.RegisterRoutes(apiV1, authModule.Middleware)
 
 	return &Container{
 		Config:         cfg,

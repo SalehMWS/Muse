@@ -9,4 +9,5 @@ func RegisterRoutes(router fiber.Router, h *Handler, requireAuth fiber.Handler) 
 	router.Patch("/:id", requireAuth, h.Update)
 	router.Delete("/:id", requireAuth, h.Archive)
 	router.Post("/:id/duplicate", requireAuth, h.Duplicate)
+	router.Post("/:id/caption", requireAuth, h.GenerateCaption)
 }

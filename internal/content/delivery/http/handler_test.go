@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http/httptest"
 	"strings"
@@ -12,6 +13,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 
+	aiapp "github.com/SalehMWS/Muse/internal/ai/application"
 	"github.com/SalehMWS/Muse/internal/content/application"
 	httpdelivery "github.com/SalehMWS/Muse/internal/content/delivery/http"
 	"github.com/SalehMWS/Muse/internal/content/domain"
@@ -19,6 +21,10 @@ import (
 )
 
 func newTestApp(userID uuid.UUID) *fiber.App {
+	return newTestAppWithProvider(userID, &fakeLLMProvider{result: &aiapp.CaptionResult{Caption: "generated", Hashtags: []string{"#ai"}}})
+}
+
+func newTestAppWithProvider(userID uuid.UUID, provider *fakeLLMProvider) *fiber.App {
 	repo := newFakeContentRepository()
 	handler := httpdelivery.NewHandler(
 		application.NewCreateUseCase(repo),
@@ -27,6 +33,7 @@ func newTestApp(userID uuid.UUID) *fiber.App {
 		application.NewArchiveUseCase(repo),
 		application.NewDuplicateUseCase(repo),
 		application.NewListUseCase(repo),
+		application.NewGenerateCaptionUseCase(repo, provider),
 	)
 
 	app := fiber.New()
@@ -163,6 +170,37 @@ func TestHandler_ArchiveAndDuplicate(t *testing.T) {
 	data, _ = body["data"].(map[string]any)
 	if data["title"] != "Copy of Campaign" || data["status"] != string(domain.StatusDraft) {
 		t.Fatalf("duplicate data = %v, unexpected", data)
+	}
+}
+
+func TestHandler_GenerateCaption(t *testing.T) {
+	userID := uuid.New()
+	provider := &fakeLLMProvider{result: &aiapp.CaptionResult{Caption: "AI wrote this", Hashtags: []string{"#travel", "sunset"}}}
+	app := newTestAppWithProvider(userID, provider)
+	id := createContent(t, app, "Trip recap")
+
+	status, body := doJSON(t, app, fiber.MethodPost, "/contents/"+id+"/caption", map[string]any{"prompt": "a beach trip"})
+	if status != fiber.StatusOK {
+		t.Fatalf("caption status = %d, want %d, body=%v", status, fiber.StatusOK, body)
+	}
+	data, _ := body["data"].(map[string]any)
+	if data["caption"] != "AI wrote this" {
+		t.Fatalf("caption = %v, want AI wrote this", data["caption"])
+	}
+	tags, _ := data["tags"].([]any)
+	if len(tags) != 2 || tags[0] != "travel" || tags[1] != "sunset" {
+		t.Fatalf("tags = %v, want normalized [travel sunset]", tags)
+	}
+}
+
+func TestHandler_GenerateCaptionProviderError(t *testing.T) {
+	userID := uuid.New()
+	app := newTestAppWithProvider(userID, &fakeLLMProvider{err: errors.New("provider down")})
+	id := createContent(t, app, "x")
+
+	status, _ := doJSON(t, app, fiber.MethodPost, "/contents/"+id+"/caption", nil)
+	if status != fiber.StatusBadGateway {
+		t.Fatalf("status = %d, want %d", status, fiber.StatusBadGateway)
 	}
 }
 

@@ -29,6 +29,7 @@ type Config struct {
 	JWT        JWT
 	Argon2     Argon2
 	Instagram  Instagram
+	AI         AI
 }
 
 type App struct {
@@ -107,6 +108,15 @@ type Instagram struct {
 	StateSecret        string
 	StateTTL           time.Duration
 	HTTPTimeout        time.Duration
+}
+
+type AI struct {
+	Provider    string
+	BaseURL     string
+	APIKey      string
+	Model       string
+	MaxTokens   int
+	HTTPTimeout time.Duration
 }
 
 func (r Redis) Addr() string {
@@ -203,6 +213,16 @@ func Load() (*Config, error) {
 		return nil, fmt.Errorf("load config: %w", err)
 	}
 
+	aiMaxTokens, err := getEnvInt("AI_MAX_TOKENS", 1024)
+	if err != nil {
+		return nil, fmt.Errorf("load config: %w", err)
+	}
+
+	aiHTTPTimeout, err := getEnvDuration("AI_HTTP_TIMEOUT", 30*time.Second)
+	if err != nil {
+		return nil, fmt.Errorf("load config: %w", err)
+	}
+
 	cfg := &Config{
 		App: App{
 			Name: getEnv("APP_NAME", "novaflow"),
@@ -262,6 +282,14 @@ func Load() (*Config, error) {
 			StateTTL:           instagramStateTTL,
 			HTTPTimeout:        instagramHTTPTimeout,
 		},
+		AI: AI{
+			Provider:    getEnv("AI_PROVIDER", "groq"),
+			BaseURL:     getEnv("AI_BASE_URL", "https://api.groq.com/openai/v1"),
+			APIKey:      getEnv("AI_API_KEY", ""),
+			Model:       getEnv("AI_MODEL", "llama-3.1-8b-instant"),
+			MaxTokens:   aiMaxTokens,
+			HTTPTimeout: aiHTTPTimeout,
+		},
 	}
 
 	if err := cfg.validate(); err != nil {
@@ -298,6 +326,12 @@ func (c *Config) validate() error {
 		}
 		if len(c.Instagram.StateSecret) < 32 {
 			return fmt.Errorf("INSTAGRAM_STATE_SECRET must be at least 32 characters in production")
+		}
+		if c.AI.APIKey == "" {
+			return fmt.Errorf("AI_API_KEY is required in production")
+		}
+		if c.AI.BaseURL == "" || c.AI.Model == "" {
+			return fmt.Errorf("AI_BASE_URL and AI_MODEL are required in production")
 		}
 	}
 

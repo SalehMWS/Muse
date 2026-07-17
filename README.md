@@ -129,4 +129,14 @@ DELETE /api/v1/contents/:id           archive content
 POST   /api/v1/contents/:id/duplicate duplicate as a new draft
 ```
 
-AI content generation is next.
+Milestone 4 — AI Engine complete. Caption and hashtag generation through a
+provider-agnostic `LLMProvider` port with an OpenAI-compatible adapter
+(works with Groq, OpenRouter, or any `/v1/chat/completions` endpoint),
+wired into content as a generate-caption endpoint.
+
+```
+POST /api/v1/contents/:id/caption   generate a caption + hashtags and save them
+```
+
+Configure the provider via `AI_BASE_URL` / `AI_MODEL` / `AI_API_KEY` (Groq by
+default; see configs/.env.example for the OpenRouter variant).

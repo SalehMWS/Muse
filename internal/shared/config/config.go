@@ -31,6 +31,7 @@ type Config struct {
 	Instagram  Instagram
 	AI         AI
 	Scheduler  Scheduler
+	Worker     Worker
 }
 
 type App struct {
@@ -122,6 +123,10 @@ type AI struct {
 
 type Scheduler struct {
 	PollInterval time.Duration
+}
+
+type Worker struct {
+	Concurrency int
 }
 
 func (r Redis) Addr() string {
@@ -233,6 +238,11 @@ func Load() (*Config, error) {
 		return nil, fmt.Errorf("load config: %w", err)
 	}
 
+	workerConcurrency, err := getEnvInt("WORKER_CONCURRENCY", 4)
+	if err != nil {
+		return nil, fmt.Errorf("load config: %w", err)
+	}
+
 	cfg := &Config{
 		App: App{
 			Name: getEnv("APP_NAME", "novaflow"),
@@ -302,6 +312,9 @@ func Load() (*Config, error) {
 		},
 		Scheduler: Scheduler{
 			PollInterval: schedulerPollInterval,
+		},
+		Worker: Worker{
+			Concurrency: workerConcurrency,
 		},
 	}
 

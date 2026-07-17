@@ -45,7 +45,7 @@ func (f *fakeScheduleRepository) ClaimDue(context.Context, time.Time, int32) ([]
 	return nil, nil
 }
 
-func (f *fakeScheduleRepository) MarkPublished(context.Context, uuid.UUID) error { return nil }
+func (f *fakeScheduleRepository) MarkQueued(context.Context, uuid.UUID) error { return nil }
 func (f *fakeScheduleRepository) MarkFailed(context.Context, uuid.UUID, string) error {
 	return nil
 }

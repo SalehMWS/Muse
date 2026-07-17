@@ -26,8 +26,8 @@ WHERE id IN (
 )
 RETURNING *;
 
--- name: MarkSchedulePublished :exec
-UPDATE schedules SET status = 'published', last_error = NULL, updated_at = now()
+-- name: MarkScheduleQueued :exec
+UPDATE schedules SET status = 'queued', last_error = NULL, updated_at = now()
 WHERE id = $1;
 
 -- name: MarkScheduleFailed :exec

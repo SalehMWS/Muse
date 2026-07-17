@@ -98,15 +98,15 @@ func TestScheduleRepository_ClaimAndMark(t *testing.T) {
 		t.Fatalf("ClaimDue() second = %d rows, want 0 (already claimed)", len(again))
 	}
 
-	if err := repo.MarkPublished(ctx, created.ID); err != nil {
-		t.Fatalf("MarkPublished() unexpected error: %v", err)
+	if err := repo.MarkQueued(ctx, created.ID); err != nil {
+		t.Fatalf("MarkQueued() unexpected error: %v", err)
 	}
 	found, err := repo.FindByIDForUser(ctx, created.ID, userID)
 	if err != nil {
 		t.Fatalf("FindByIDForUser() unexpected error: %v", err)
 	}
-	if found.Status != scheddomain.StatusPublished {
-		t.Fatalf("status = %q, want published", found.Status)
+	if found.Status != scheddomain.StatusQueued {
+		t.Fatalf("status = %q, want queued", found.Status)
 	}
 }
 

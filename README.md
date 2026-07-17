@@ -169,5 +169,17 @@ GET    /api/v1/contents/:id/schedules             list a content item's schedule
 DELETE /api/v1/contents/:id/schedules/:scheduleId cancel a pending schedule
 ```
 
-The runner is in-process (poll interval `SCHEDULER_POLL_INTERVAL`); durable
-queue-backed workers arrive in a later milestone.
+The runner is in-process (poll interval `SCHEDULER_POLL_INTERVAL`).
+
+Milestone 7 — Workers complete. Publishing runs asynchronously: schedules are
+handed to a Redis Streams job queue and executed by an in-process worker pool
+with at-least-once delivery, retry, a dead-letter queue, and metrics.
+
+```
+GET /api/v1/worker/stats   worker throughput (processed / succeeded / retried / dead-lettered)
+```
+
+The scheduler now enqueues an `instagram.publish` job (versioned Job Contract)
+instead of publishing inline; the worker pool consumes it, retries on failure
+up to the job's max attempts, then dead-letters. Concurrency is set via
+`WORKER_CONCURRENCY`; the queue interface is Redis-backed but replaceable.

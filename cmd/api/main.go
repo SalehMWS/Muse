@@ -69,6 +69,7 @@ func run(ctx context.Context) error {
 	}
 
 	go container.Scheduler.Runner.Run(ctx)
+	go container.Worker.Pool.Run(ctx)
 
 	serveErrors := make(chan error, 1)
 	go func() {

@@ -1,0 +1,26 @@
+# Internal planning/architecture docs — not published
+/docs/
+
+# Binaries
+/bin/
+*.exe
+*.test
+
+# Go
+/vendor/
+
+# Environment
+configs/.env
+.env
+*.env.local
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+
+# Coverage
+*.out
+coverage.html

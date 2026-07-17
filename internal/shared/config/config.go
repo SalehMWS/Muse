@@ -32,6 +32,7 @@ type Config struct {
 	AI         AI
 	Scheduler  Scheduler
 	Worker     Worker
+	Knowledge  Knowledge
 }
 
 type App struct {
@@ -127,6 +128,18 @@ type Scheduler struct {
 
 type Worker struct {
 	Concurrency int
+}
+
+type Knowledge struct {
+	Embedder         string
+	EmbeddingModel   string
+	EmbeddingDim     int
+	VectorStore      string
+	MilvusAddr       string
+	MilvusCollection string
+	ChunkSize        int
+	ChunkOverlap     int
+	TopK             int
 }
 
 func (r Redis) Addr() string {
@@ -243,6 +256,26 @@ func Load() (*Config, error) {
 		return nil, fmt.Errorf("load config: %w", err)
 	}
 
+	knowledgeEmbeddingDim, err := getEnvInt("KNOWLEDGE_EMBEDDING_DIM", 256)
+	if err != nil {
+		return nil, fmt.Errorf("load config: %w", err)
+	}
+
+	knowledgeChunkSize, err := getEnvInt("KNOWLEDGE_CHUNK_SIZE", 200)
+	if err != nil {
+		return nil, fmt.Errorf("load config: %w", err)
+	}
+
+	knowledgeChunkOverlap, err := getEnvInt("KNOWLEDGE_CHUNK_OVERLAP", 40)
+	if err != nil {
+		return nil, fmt.Errorf("load config: %w", err)
+	}
+
+	knowledgeTopK, err := getEnvInt("KNOWLEDGE_TOP_K", 5)
+	if err != nil {
+		return nil, fmt.Errorf("load config: %w", err)
+	}
+
 	cfg := &Config{
 		App: App{
 			Name: getEnv("APP_NAME", "novaflow"),
@@ -315,6 +348,17 @@ func Load() (*Config, error) {
 		},
 		Worker: Worker{
 			Concurrency: workerConcurrency,
+		},
+		Knowledge: Knowledge{
+			Embedder:         getEnv("KNOWLEDGE_EMBEDDER", "local"),
+			EmbeddingModel:   getEnv("KNOWLEDGE_EMBEDDING_MODEL", "text-embedding-3-small"),
+			EmbeddingDim:     knowledgeEmbeddingDim,
+			VectorStore:      getEnv("KNOWLEDGE_VECTOR_STORE", "memory"),
+			MilvusAddr:       getEnv("KNOWLEDGE_MILVUS_ADDR", "localhost:19530"),
+			MilvusCollection: getEnv("KNOWLEDGE_MILVUS_COLLECTION", "novaflow_knowledge"),
+			ChunkSize:        knowledgeChunkSize,
+			ChunkOverlap:     knowledgeChunkOverlap,
+			TopK:             knowledgeTopK,
 		},
 	}
 

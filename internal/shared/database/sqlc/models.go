@@ -25,6 +25,18 @@ type Content struct {
 	DeletedAt   pgtype.Timestamptz `json:"deleted_at"`
 }
 
+type Document struct {
+	ID         uuid.UUID          `json:"id"`
+	UserID     uuid.UUID          `json:"user_id"`
+	Title      string             `json:"title"`
+	Source     string             `json:"source"`
+	Status     string             `json:"status"`
+	ChunkCount int32              `json:"chunk_count"`
+	LastError  *string            `json:"last_error"`
+	CreatedAt  pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt  pgtype.Timestamptz `json:"updated_at"`
+}
+
 type InstagramAccount struct {
 	ID              uuid.UUID          `json:"id"`
 	UserID          uuid.UUID          `json:"user_id"`

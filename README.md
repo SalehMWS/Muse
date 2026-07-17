@@ -183,3 +183,19 @@ The scheduler now enqueues an `instagram.publish` job (versioned Job Contract)
 instead of publishing inline; the worker pool consumes it, retries on failure
 up to the job's max attempts, then dead-letters. Concurrency is set via
 `WORKER_CONCURRENCY`; the queue interface is Redis-backed but replaceable.
+
+Milestone 8 — Knowledge Base (RAG) complete. Ingest documents (chunked +
+embedded), store vectors in Milvus, and retrieve relevant chunks for a query
+to build AI context — the retrieval half of Retrieval-Augmented Generation.
+
+```
+POST   /api/v1/knowledge/documents      ingest a document (chunk -> embed -> index)
+GET    /api/v1/knowledge/documents      list ingested documents
+DELETE /api/v1/knowledge/documents/:id  remove a document and its vectors
+POST   /api/v1/knowledge/query          semantic search + built context for a query
+```
+
+The embedder and vector store are behind ports: the embedder is a deterministic
+local one by default (`KNOWLEDGE_EMBEDDER=local`, no API key) or an
+OpenAI-compatible `/v1/embeddings` client; the vector store is in-memory by
+default or Milvus (`KNOWLEDGE_VECTOR_STORE=milvus`).

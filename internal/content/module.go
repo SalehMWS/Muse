@@ -4,6 +4,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	aiapp "github.com/SalehMWS/Muse/internal/ai/application"
 	"github.com/SalehMWS/Muse/internal/content/application"
 	httpdelivery "github.com/SalehMWS/Muse/internal/content/delivery/http"
 	"github.com/SalehMWS/Muse/internal/content/infrastructure/postgres"
@@ -13,7 +14,7 @@ type Module struct {
 	Handler *httpdelivery.Handler
 }
 
-func New(pool *pgxpool.Pool) *Module {
+func New(pool *pgxpool.Pool, aiProvider aiapp.LLMProvider) *Module {
 	repo := postgres.NewContentRepository(pool)
 
 	return &Module{
@@ -24,6 +25,7 @@ func New(pool *pgxpool.Pool) *Module {
 			application.NewArchiveUseCase(repo),
 			application.NewDuplicateUseCase(repo),
 			application.NewListUseCase(repo),
+			application.NewGenerateCaptionUseCase(repo, aiProvider),
 		),
 	}
 }

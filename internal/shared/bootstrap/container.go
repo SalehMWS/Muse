@@ -10,6 +10,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/SalehMWS/Muse/internal/auth"
+	"github.com/SalehMWS/Muse/internal/instagram"
 	"github.com/SalehMWS/Muse/internal/shared/cache"
 	"github.com/SalehMWS/Muse/internal/shared/config"
 	"github.com/SalehMWS/Muse/internal/shared/database"
@@ -65,6 +66,14 @@ func New(ctx context.Context) (*Container, error) {
 	authModule := auth.New(db, cfg.JWT, cfg.Argon2)
 	apiV1 := app.Group("/api/v1")
 	authModule.RegisterRoutes(apiV1)
+
+	instagramModule, err := instagram.New(db, cfg.Instagram)
+	if err != nil {
+		_ = redisClient.Close()
+		db.Close()
+		return nil, fmt.Errorf("bootstrap: %w", err)
+	}
+	instagramModule.RegisterRoutes(apiV1, authModule.Middleware)
 
 	return &Container{
 		Config:         cfg,

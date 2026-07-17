@@ -14,15 +14,18 @@ type Querier interface {
 	CancelSchedule(ctx context.Context, arg CancelScheduleParams) error
 	ClaimDueSchedules(ctx context.Context, arg ClaimDueSchedulesParams) ([]Schedule, error)
 	CreateContent(ctx context.Context, arg CreateContentParams) (Content, error)
+	CreateDocument(ctx context.Context, arg CreateDocumentParams) (Document, error)
 	CreateMedia(ctx context.Context, arg CreateMediaParams) (Medium, error)
 	CreatePublication(ctx context.Context, arg CreatePublicationParams) (Publication, error)
 	CreateSchedule(ctx context.Context, arg CreateScheduleParams) (Schedule, error)
 	CreateSession(ctx context.Context, arg CreateSessionParams) (Session, error)
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
+	DeleteDocumentForUser(ctx context.Context, arg DeleteDocumentForUserParams) error
 	DeleteInstagramAccountForUser(ctx context.Context, arg DeleteInstagramAccountForUserParams) error
 	DeleteMediaForContent(ctx context.Context, arg DeleteMediaForContentParams) error
 	DeleteSessionByRefreshTokenHash(ctx context.Context, refreshTokenHash string) error
 	GetContentByIDForUser(ctx context.Context, arg GetContentByIDForUserParams) (Content, error)
+	GetDocumentByIDForUser(ctx context.Context, arg GetDocumentByIDForUserParams) (Document, error)
 	GetInstagramAccountByIDForUser(ctx context.Context, arg GetInstagramAccountByIDForUserParams) (InstagramAccount, error)
 	GetMediaByIDForContent(ctx context.Context, arg GetMediaByIDForContentParams) (Medium, error)
 	GetScheduleByIDForUser(ctx context.Context, arg GetScheduleByIDForUserParams) (Schedule, error)
@@ -31,6 +34,7 @@ type Querier interface {
 	GetUserByID(ctx context.Context, id uuid.UUID) (User, error)
 	ListContents(ctx context.Context, arg ListContentsParams) ([]Content, error)
 	ListContentsAfter(ctx context.Context, arg ListContentsAfterParams) ([]Content, error)
+	ListDocumentsByUser(ctx context.Context, userID uuid.UUID) ([]Document, error)
 	ListInstagramAccountsByUser(ctx context.Context, userID uuid.UUID) ([]InstagramAccount, error)
 	ListMediaByContent(ctx context.Context, contentID uuid.UUID) ([]Medium, error)
 	ListPublicationsByContentForUser(ctx context.Context, arg ListPublicationsByContentForUserParams) ([]Publication, error)
@@ -41,6 +45,7 @@ type Querier interface {
 	RetrySchedule(ctx context.Context, arg RetryScheduleParams) error
 	RotateSession(ctx context.Context, arg RotateSessionParams) (Session, error)
 	UpdateContent(ctx context.Context, arg UpdateContentParams) (Content, error)
+	UpdateDocumentStatus(ctx context.Context, arg UpdateDocumentStatusParams) (Document, error)
 	UpdateInstagramAccountToken(ctx context.Context, arg UpdateInstagramAccountTokenParams) (InstagramAccount, error)
 	UpsertInstagramAccount(ctx context.Context, arg UpsertInstagramAccountParams) (InstagramAccount, error)
 }

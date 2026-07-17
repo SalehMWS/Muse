@@ -13,6 +13,7 @@ import (
 	"github.com/SalehMWS/Muse/internal/auth"
 	"github.com/SalehMWS/Muse/internal/content"
 	"github.com/SalehMWS/Muse/internal/instagram"
+	"github.com/SalehMWS/Muse/internal/knowledge"
 	"github.com/SalehMWS/Muse/internal/publishing"
 	pubcontent "github.com/SalehMWS/Muse/internal/publishing/infrastructure/content"
 	pubinstagram "github.com/SalehMWS/Muse/internal/publishing/infrastructure/instagram"
@@ -36,6 +37,7 @@ type Container struct {
 	AuthMiddleware fiber.Handler
 	Scheduler      *scheduler.Module
 	Worker         *worker.Module
+	Knowledge      *knowledge.Module
 }
 
 func New(ctx context.Context) (*Container, error) {
@@ -113,6 +115,14 @@ func New(ctx context.Context) (*Container, error) {
 	schedulerModule := scheduler.New(db, workerModule.Enqueuer, log, cfg.Scheduler.PollInterval)
 	schedulerModule.RegisterRoutes(apiV1, authModule.Middleware)
 
+	knowledgeModule, err := knowledge.New(db, cfg.Knowledge, cfg.AI)
+	if err != nil {
+		_ = redisClient.Close()
+		db.Close()
+		return nil, fmt.Errorf("bootstrap: %w", err)
+	}
+	knowledgeModule.RegisterRoutes(apiV1, authModule.Middleware)
+
 	return &Container{
 		Config:         cfg,
 		Logger:         log,
@@ -122,10 +132,15 @@ func New(ctx context.Context) (*Container, error) {
 		AuthMiddleware: authModule.Middleware,
 		Scheduler:      schedulerModule,
 		Worker:         workerModule,
+		Knowledge:      knowledgeModule,
 	}, nil
 }
 
 func (c *Container) Shutdown(ctx context.Context) error {
+	if c.Knowledge != nil {
+		c.Knowledge.Close()
+	}
+
 	if err := c.Redis.Close(); err != nil {
 		c.Logger.Error("shutdown: close redis", zap.Error(err))
 	}

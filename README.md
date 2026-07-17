@@ -103,4 +103,17 @@ POST /api/v1/auth/logout     invalidate a refresh token
 GET  /api/v1/auth/me         current authenticated user (Bearer token)
 ```
 
-Instagram integration is next.
+Milestone 2 — Instagram Integration complete. Connect an Instagram
+Business/Creator account via the Instagram Login OAuth2 flow, with
+long-lived access tokens encrypted at rest (AES-256-GCM), stateless
+HMAC-signed OAuth state, token refresh, and connection status.
+
+```
+GET    /api/v1/instagram/connect              start OAuth, returns authorize URL + state
+GET    /api/v1/instagram/callback             OAuth redirect: exchange code, store account
+GET    /api/v1/instagram/accounts             list connected accounts and status
+POST   /api/v1/instagram/accounts/:id/refresh refresh a connection's long-lived token
+DELETE /api/v1/instagram/accounts/:id         disconnect an account
+```
+
+Content management is next.

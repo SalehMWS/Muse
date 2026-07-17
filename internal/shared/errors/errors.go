@@ -19,6 +19,16 @@ const (
 	CodeRateLimited  Code = "RATE_LIMITED"
 	CodeExternalAPI  Code = "EXTERNAL_API_ERROR"
 	CodeBadRequest   Code = "BAD_REQUEST"
+
+	CodeAuthInvalidCredentials  Code = "AUTH_INVALID_CREDENTIALS" //nolint:gosec
+	CodeAuthTokenExpired        Code = "AUTH_TOKEN_EXPIRED"       //nolint:gosec
+	CodeAuthInvalidToken        Code = "AUTH_INVALID_TOKEN"       //nolint:gosec
+	CodeAuthSessionExpired      Code = "AUTH_SESSION_EXPIRED"
+	CodeAuthPermissionDenied    Code = "AUTH_PERMISSION_DENIED"
+	CodeAuthAccountDisabled     Code = "AUTH_ACCOUNT_DISABLED"
+	CodeAuthAccountSuspended    Code = "AUTH_ACCOUNT_SUSPENDED"
+	CodeAuthRefreshRequired     Code = "AUTH_REFRESH_REQUIRED"
+	CodeAuthInvalidRefreshToken Code = "AUTH_INVALID_REFRESH_TOKEN" //nolint:gosec
 )
 
 var httpStatusByCode = map[Code]int{
@@ -32,6 +42,16 @@ var httpStatusByCode = map[Code]int{
 	CodeRateLimited:  http.StatusTooManyRequests,
 	CodeExternalAPI:  http.StatusBadGateway,
 	CodeBadRequest:   http.StatusBadRequest,
+
+	CodeAuthInvalidCredentials:  http.StatusUnauthorized,
+	CodeAuthTokenExpired:        http.StatusUnauthorized,
+	CodeAuthInvalidToken:        http.StatusUnauthorized,
+	CodeAuthSessionExpired:      http.StatusUnauthorized,
+	CodeAuthPermissionDenied:    http.StatusForbidden,
+	CodeAuthAccountDisabled:     http.StatusForbidden,
+	CodeAuthAccountSuspended:    http.StatusForbidden,
+	CodeAuthRefreshRequired:     http.StatusUnauthorized,
+	CodeAuthInvalidRefreshToken: http.StatusUnauthorized,
 }
 
 type Error struct {

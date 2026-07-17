@@ -90,4 +90,17 @@ communicate through interfaces or events.
 ## Status
 
 Milestone 0 — Project Foundation complete (config, logger, DI bootstrap,
-health checks, migrations, CI, lint). Authentication is next.
+health checks, migrations, CI, lint).
+
+Milestone 1 — Authentication complete. Email/password auth with Argon2id
+password hashing, JWT access tokens, and rotating refresh-token sessions.
+
+```
+POST /api/v1/auth/register   create an account
+POST /api/v1/auth/login      authenticate, returns access + refresh tokens
+POST /api/v1/auth/refresh    rotate a refresh token for a new access token
+POST /api/v1/auth/logout     invalidate a refresh token
+GET  /api/v1/auth/me         current authenticated user (Bearer token)
+```
+
+Instagram integration is next.

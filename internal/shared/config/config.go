@@ -26,6 +26,8 @@ type Config struct {
 	Postgres   Postgres
 	Redis      Redis
 	Migrations Migrations
+	JWT        JWT
+	Argon2     Argon2
 }
 
 type App struct {
@@ -74,6 +76,22 @@ type Redis struct {
 
 type Migrations struct {
 	Dir string
+}
+
+type JWT struct {
+	Secret          string
+	Issuer          string
+	Audience        string
+	AccessTokenTTL  time.Duration
+	RefreshTokenTTL time.Duration
+}
+
+type Argon2 struct {
+	Memory      uint32
+	Time        uint32
+	Parallelism uint8
+	SaltLength  uint32
+	KeyLength   uint32
 }
 
 func (r Redis) Addr() string {
@@ -125,6 +143,41 @@ func Load() (*Config, error) {
 		return nil, fmt.Errorf("load config: %w", err)
 	}
 
+	jwtAccessTTL, err := getEnvDuration("JWT_ACCESS_TOKEN_TTL", 15*time.Minute)
+	if err != nil {
+		return nil, fmt.Errorf("load config: %w", err)
+	}
+
+	jwtRefreshTTL, err := getEnvDuration("JWT_REFRESH_TOKEN_TTL", 30*24*time.Hour)
+	if err != nil {
+		return nil, fmt.Errorf("load config: %w", err)
+	}
+
+	argon2Memory, err := getEnvUint32("ARGON2_MEMORY", 65536)
+	if err != nil {
+		return nil, fmt.Errorf("load config: %w", err)
+	}
+
+	argon2Time, err := getEnvUint32("ARGON2_TIME", 3)
+	if err != nil {
+		return nil, fmt.Errorf("load config: %w", err)
+	}
+
+	argon2Parallelism, err := getEnvUint8("ARGON2_PARALLELISM", 2)
+	if err != nil {
+		return nil, fmt.Errorf("load config: %w", err)
+	}
+
+	argon2SaltLength, err := getEnvUint32("ARGON2_SALT_LENGTH", 16)
+	if err != nil {
+		return nil, fmt.Errorf("load config: %w", err)
+	}
+
+	argon2KeyLength, err := getEnvUint32("ARGON2_KEY_LENGTH", 32)
+	if err != nil {
+		return nil, fmt.Errorf("load config: %w", err)
+	}
+
 	cfg := &Config{
 		App: App{
 			Name: getEnv("APP_NAME", "novaflow"),
@@ -157,6 +210,20 @@ func Load() (*Config, error) {
 		Migrations: Migrations{
 			Dir: getEnv("MIGRATIONS_DIR", "deployments/migrations"),
 		},
+		JWT: JWT{
+			Secret:          getEnv("JWT_SECRET", "dev-only-insecure-secret-change-me-32chars"),
+			Issuer:          getEnv("JWT_ISSUER", "novaflow"),
+			Audience:        getEnv("JWT_AUDIENCE", "novaflow-api"),
+			AccessTokenTTL:  jwtAccessTTL,
+			RefreshTokenTTL: jwtRefreshTTL,
+		},
+		Argon2: Argon2{
+			Memory:      argon2Memory,
+			Time:        argon2Time,
+			Parallelism: argon2Parallelism,
+			SaltLength:  argon2SaltLength,
+			KeyLength:   argon2KeyLength,
+		},
 	}
 
 	if err := cfg.validate(); err != nil {
@@ -175,6 +242,10 @@ func (c *Config) validate() error {
 
 	if c.App.IsProduction() && c.Postgres.Password == "" {
 		return fmt.Errorf("POSTGRES_PASSWORD is required in production")
+	}
+
+	if c.App.IsProduction() && len(c.JWT.Secret) < 32 {
+		return fmt.Errorf("JWT_SECRET must be at least 32 characters in production")
 	}
 
 	return nil
@@ -212,6 +283,32 @@ func getEnvInt32(key string, fallback int32) (int32, error) {
 		return 0, fmt.Errorf("parse %s: %w", key, err)
 	}
 	return int32(parsed), nil
+}
+
+func getEnvUint32(key string, fallback uint32) (uint32, error) {
+	value, ok := os.LookupEnv(key)
+	if !ok || strings.TrimSpace(value) == "" {
+		return fallback, nil
+	}
+
+	parsed, err := strconv.ParseUint(value, 10, 32)
+	if err != nil {
+		return 0, fmt.Errorf("parse %s: %w", key, err)
+	}
+	return uint32(parsed), nil
+}
+
+func getEnvUint8(key string, fallback uint8) (uint8, error) {
+	value, ok := os.LookupEnv(key)
+	if !ok || strings.TrimSpace(value) == "" {
+		return fallback, nil
+	}
+
+	parsed, err := strconv.ParseUint(value, 10, 8)
+	if err != nil {
+		return 0, fmt.Errorf("parse %s: %w", key, err)
+	}
+	return uint8(parsed), nil
 }
 
 func getEnvDuration(key string, fallback time.Duration) (time.Duration, error) {

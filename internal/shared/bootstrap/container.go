@@ -10,6 +10,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/SalehMWS/Muse/internal/auth"
+	"github.com/SalehMWS/Muse/internal/content"
 	"github.com/SalehMWS/Muse/internal/instagram"
 	"github.com/SalehMWS/Muse/internal/shared/cache"
 	"github.com/SalehMWS/Muse/internal/shared/config"
@@ -74,6 +75,9 @@ func New(ctx context.Context) (*Container, error) {
 		return nil, fmt.Errorf("bootstrap: %w", err)
 	}
 	instagramModule.RegisterRoutes(apiV1, authModule.Middleware)
+
+	contentModule := content.New(db)
+	contentModule.RegisterRoutes(apiV1, authModule.Middleware)
 
 	return &Container{
 		Config:         cfg,

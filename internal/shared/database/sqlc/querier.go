@@ -11,16 +11,21 @@ import (
 )
 
 type Querier interface {
+	CreateContent(ctx context.Context, arg CreateContentParams) (Content, error)
 	CreateSession(ctx context.Context, arg CreateSessionParams) (Session, error)
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
 	DeleteInstagramAccountForUser(ctx context.Context, arg DeleteInstagramAccountForUserParams) error
 	DeleteSessionByRefreshTokenHash(ctx context.Context, refreshTokenHash string) error
+	GetContentByIDForUser(ctx context.Context, arg GetContentByIDForUserParams) (Content, error)
 	GetInstagramAccountByIDForUser(ctx context.Context, arg GetInstagramAccountByIDForUserParams) (InstagramAccount, error)
 	GetSessionByRefreshTokenHash(ctx context.Context, refreshTokenHash string) (Session, error)
 	GetUserByEmail(ctx context.Context, email string) (User, error)
 	GetUserByID(ctx context.Context, id uuid.UUID) (User, error)
+	ListContents(ctx context.Context, arg ListContentsParams) ([]Content, error)
+	ListContentsAfter(ctx context.Context, arg ListContentsAfterParams) ([]Content, error)
 	ListInstagramAccountsByUser(ctx context.Context, userID uuid.UUID) ([]InstagramAccount, error)
 	RotateSession(ctx context.Context, arg RotateSessionParams) (Session, error)
+	UpdateContent(ctx context.Context, arg UpdateContentParams) (Content, error)
 	UpdateInstagramAccountToken(ctx context.Context, arg UpdateInstagramAccountTokenParams) (InstagramAccount, error)
 	UpsertInstagramAccount(ctx context.Context, arg UpsertInstagramAccountParams) (InstagramAccount, error)
 }

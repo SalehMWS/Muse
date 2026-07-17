@@ -9,6 +9,22 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type Content struct {
+	ID          uuid.UUID          `json:"id"`
+	UserID      uuid.UUID          `json:"user_id"`
+	Title       string             `json:"title"`
+	Caption     string             `json:"caption"`
+	Status      string             `json:"status"`
+	Language    string             `json:"language"`
+	ContentType string             `json:"content_type"`
+	Visibility  string             `json:"visibility"`
+	Tags        []string           `json:"tags"`
+	PublishedAt pgtype.Timestamptz `json:"published_at"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt   pgtype.Timestamptz `json:"deleted_at"`
+}
+
 type InstagramAccount struct {
 	ID              uuid.UUID          `json:"id"`
 	UserID          uuid.UUID          `json:"user_id"`

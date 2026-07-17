@@ -116,4 +116,17 @@ POST   /api/v1/instagram/accounts/:id/refresh refresh a connection's long-lived 
 DELETE /api/v1/instagram/accounts/:id         disconnect an account
 ```
 
-Content management is next.
+Milestone 3 — Content Management complete. Full content lifecycle CRUD
+with drafts, archiving, tags, and cursor-paginated listing filtered by
+status, language, type, and tag.
+
+```
+POST   /api/v1/contents               create content (starts as a draft)
+GET    /api/v1/contents               list own content (filters + ?limit &?cursor)
+GET    /api/v1/contents/:id           fetch one content item
+PATCH  /api/v1/contents/:id           update fields, tags, or draft/archived status
+DELETE /api/v1/contents/:id           archive content
+POST   /api/v1/contents/:id/duplicate duplicate as a new draft
+```
+
+AI content generation is next.

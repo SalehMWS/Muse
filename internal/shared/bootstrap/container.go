@@ -9,6 +9,7 @@ import (
 	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
 
+	"github.com/SalehMWS/Muse/internal/auth"
 	"github.com/SalehMWS/Muse/internal/shared/cache"
 	"github.com/SalehMWS/Muse/internal/shared/config"
 	"github.com/SalehMWS/Muse/internal/shared/database"
@@ -19,11 +20,12 @@ import (
 )
 
 type Container struct {
-	Config *config.Config
-	Logger *zap.Logger
-	DB     *pgxpool.Pool
-	Redis  *redis.Client
-	App    *fiber.App
+	Config         *config.Config
+	Logger         *zap.Logger
+	DB             *pgxpool.Pool
+	Redis          *redis.Client
+	App            *fiber.App
+	AuthMiddleware fiber.Handler
 }
 
 func New(ctx context.Context) (*Container, error) {
@@ -60,12 +62,17 @@ func New(ctx context.Context) (*Container, error) {
 
 	health.NewChecker(db, redisClient).RegisterRoutes(app)
 
+	authModule := auth.New(db, cfg.JWT, cfg.Argon2)
+	apiV1 := app.Group("/api/v1")
+	authModule.RegisterRoutes(apiV1)
+
 	return &Container{
-		Config: cfg,
-		Logger: log,
-		DB:     db,
-		Redis:  redisClient,
-		App:    app,
+		Config:         cfg,
+		Logger:         log,
+		DB:             db,
+		Redis:          redisClient,
+		App:            app,
+		AuthMiddleware: authModule.Middleware,
 	}, nil
 }
 

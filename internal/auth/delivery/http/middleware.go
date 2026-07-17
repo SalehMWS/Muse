@@ -7,15 +7,12 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/SalehMWS/Muse/internal/auth/application"
+	"github.com/SalehMWS/Muse/internal/shared/authcontext"
 	apperrors "github.com/SalehMWS/Muse/internal/shared/errors"
 	"github.com/SalehMWS/Muse/internal/shared/response"
 )
 
-const (
-	localsUserID    = "auth_user_id"
-	localsSessionID = "auth_session_id"
-	bearerPrefix    = "Bearer "
-)
+const bearerPrefix = "Bearer "
 
 func RequireAuth(issuer application.TokenIssuer) fiber.Handler {
 	return func(c *fiber.Ctx) error {
@@ -31,19 +28,16 @@ func RequireAuth(issuer application.TokenIssuer) fiber.Handler {
 			return response.Fail(c, apperrors.New(apperrors.CodeAuthInvalidToken, "invalid or expired token"))
 		}
 
-		c.Locals(localsUserID, claims.UserID)
-		c.Locals(localsSessionID, claims.SessionID)
+		authcontext.SetUser(c, claims.UserID, claims.SessionID)
 
 		return c.Next()
 	}
 }
 
 func CurrentUserID(c *fiber.Ctx) (uuid.UUID, bool) {
-	id, ok := c.Locals(localsUserID).(uuid.UUID)
-	return id, ok
+	return authcontext.UserID(c)
 }
 
 func CurrentSessionID(c *fiber.Ctx) (uuid.UUID, bool) {
-	id, ok := c.Locals(localsSessionID).(uuid.UUID)
-	return id, ok
+	return authcontext.SessionID(c)
 }

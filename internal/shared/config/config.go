@@ -28,6 +28,7 @@ type Config struct {
 	Migrations Migrations
 	JWT        JWT
 	Argon2     Argon2
+	Instagram  Instagram
 }
 
 type App struct {
@@ -92,6 +93,20 @@ type Argon2 struct {
 	Parallelism uint8
 	SaltLength  uint32
 	KeyLength   uint32
+}
+
+type Instagram struct {
+	ClientID           string
+	ClientSecret       string
+	RedirectURI        string
+	Scopes             string
+	AuthBaseURL        string
+	APIBaseURL         string
+	GraphBaseURL       string
+	TokenEncryptionKey string
+	StateSecret        string
+	StateTTL           time.Duration
+	HTTPTimeout        time.Duration
 }
 
 func (r Redis) Addr() string {
@@ -178,6 +193,16 @@ func Load() (*Config, error) {
 		return nil, fmt.Errorf("load config: %w", err)
 	}
 
+	instagramStateTTL, err := getEnvDuration("INSTAGRAM_STATE_TTL", 10*time.Minute)
+	if err != nil {
+		return nil, fmt.Errorf("load config: %w", err)
+	}
+
+	instagramHTTPTimeout, err := getEnvDuration("INSTAGRAM_HTTP_TIMEOUT", 10*time.Second)
+	if err != nil {
+		return nil, fmt.Errorf("load config: %w", err)
+	}
+
 	cfg := &Config{
 		App: App{
 			Name: getEnv("APP_NAME", "novaflow"),
@@ -224,6 +249,19 @@ func Load() (*Config, error) {
 			SaltLength:  argon2SaltLength,
 			KeyLength:   argon2KeyLength,
 		},
+		Instagram: Instagram{
+			ClientID:           getEnv("INSTAGRAM_CLIENT_ID", ""),
+			ClientSecret:       getEnv("INSTAGRAM_CLIENT_SECRET", ""),
+			RedirectURI:        getEnv("INSTAGRAM_REDIRECT_URI", "http://localhost:8090/api/v1/instagram/callback"),
+			Scopes:             getEnv("INSTAGRAM_SCOPES", "instagram_business_basic,instagram_business_content_publish"),
+			AuthBaseURL:        getEnv("INSTAGRAM_AUTH_BASE_URL", "https://www.instagram.com"),
+			APIBaseURL:         getEnv("INSTAGRAM_API_BASE_URL", "https://api.instagram.com"),
+			GraphBaseURL:       getEnv("INSTAGRAM_GRAPH_BASE_URL", "https://graph.instagram.com"),
+			TokenEncryptionKey: getEnv("INSTAGRAM_TOKEN_ENCRYPTION_KEY", "dev-only-insecure-instagram-token-key-change-me"),
+			StateSecret:        getEnv("INSTAGRAM_STATE_SECRET", "dev-only-insecure-instagram-state-secret-change-me"),
+			StateTTL:           instagramStateTTL,
+			HTTPTimeout:        instagramHTTPTimeout,
+		},
 	}
 
 	if err := cfg.validate(); err != nil {
@@ -246,6 +284,21 @@ func (c *Config) validate() error {
 
 	if c.App.IsProduction() && len(c.JWT.Secret) < 32 {
 		return fmt.Errorf("JWT_SECRET must be at least 32 characters in production")
+	}
+
+	if c.App.IsProduction() {
+		if c.Instagram.ClientID == "" || c.Instagram.ClientSecret == "" {
+			return fmt.Errorf("INSTAGRAM_CLIENT_ID and INSTAGRAM_CLIENT_SECRET are required in production")
+		}
+		if c.Instagram.RedirectURI == "" {
+			return fmt.Errorf("INSTAGRAM_REDIRECT_URI is required in production")
+		}
+		if len(c.Instagram.TokenEncryptionKey) < 32 {
+			return fmt.Errorf("INSTAGRAM_TOKEN_ENCRYPTION_KEY must be at least 32 characters in production")
+		}
+		if len(c.Instagram.StateSecret) < 32 {
+			return fmt.Errorf("INSTAGRAM_STATE_SECRET must be at least 32 characters in production")
+		}
 	}
 
 	return nil

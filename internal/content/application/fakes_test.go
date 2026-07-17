@@ -5,9 +5,24 @@ import (
 
 	"github.com/google/uuid"
 
+	aiapp "github.com/SalehMWS/Muse/internal/ai/application"
 	"github.com/SalehMWS/Muse/internal/content/application"
 	"github.com/SalehMWS/Muse/internal/content/domain"
 )
+
+type fakeLLMProvider struct {
+	result *aiapp.CaptionResult
+	err    error
+	prompt string
+}
+
+func (f *fakeLLMProvider) GenerateCaptions(_ context.Context, prompt string) (*aiapp.CaptionResult, error) {
+	f.prompt = prompt
+	if f.err != nil {
+		return nil, f.err
+	}
+	return f.result, nil
+}
 
 type fakeContentRepository struct {
 	byID       map[uuid.UUID]domain.Content

@@ -16,12 +16,13 @@ import (
 )
 
 type Handler struct {
-	create    *application.CreateUseCase
-	get       *application.GetUseCase
-	update    *application.UpdateUseCase
-	archive   *application.ArchiveUseCase
-	duplicate *application.DuplicateUseCase
-	list      *application.ListUseCase
+	create          *application.CreateUseCase
+	get             *application.GetUseCase
+	update          *application.UpdateUseCase
+	archive         *application.ArchiveUseCase
+	duplicate       *application.DuplicateUseCase
+	list            *application.ListUseCase
+	generateCaption *application.GenerateCaptionUseCase
 }
 
 func NewHandler(
@@ -31,14 +32,16 @@ func NewHandler(
 	archive *application.ArchiveUseCase,
 	duplicate *application.DuplicateUseCase,
 	list *application.ListUseCase,
+	generateCaption *application.GenerateCaptionUseCase,
 ) *Handler {
 	return &Handler{
-		create:    create,
-		get:       get,
-		update:    update,
-		archive:   archive,
-		duplicate: duplicate,
-		list:      list,
+		create:          create,
+		get:             get,
+		update:          update,
+		archive:         archive,
+		duplicate:       duplicate,
+		list:            list,
+		generateCaption: generateCaption,
 	}
 }
 
@@ -173,6 +176,27 @@ func (h *Handler) Duplicate(c *fiber.Ctx) error {
 	return response.Created(c, newContentResponse(content))
 }
 
+func (h *Handler) GenerateCaption(c *fiber.Ctx) error {
+	userID, id, err := identify(c)
+	if err != nil {
+		return response.Fail(c, err)
+	}
+
+	var req GenerateCaptionRequest
+	if len(c.Body()) > 0 {
+		if err := c.BodyParser(&req); err != nil {
+			return response.Fail(c, apperrors.NewValidation("invalid request body"))
+		}
+	}
+
+	content, err := h.generateCaption.Execute(c.UserContext(), userID, id, req.Prompt)
+	if err != nil {
+		return response.Fail(c, mapError(err))
+	}
+
+	return response.OK(c, newContentResponse(content))
+}
+
 func identify(c *fiber.Ctx) (uuid.UUID, uuid.UUID, error) {
 	userID, ok := authcontext.UserID(c)
 	if !ok {
@@ -201,6 +225,8 @@ func mapError(err error) error {
 	switch {
 	case errors.Is(err, application.ErrContentNotFound):
 		return apperrors.NewNotFound(err.Error())
+	case errors.Is(err, application.ErrCaptionUnavailable):
+		return apperrors.New(apperrors.CodeExternalAPI, err.Error())
 	case errors.Is(err, application.ErrInvalidCursor),
 		errors.Is(err, domain.ErrTitleTooLong),
 		errors.Is(err, domain.ErrCaptionTooLong),

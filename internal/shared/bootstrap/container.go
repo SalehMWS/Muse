@@ -9,6 +9,7 @@ import (
 	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
 
+	"github.com/SalehMWS/Muse/internal/ai"
 	"github.com/SalehMWS/Muse/internal/auth"
 	"github.com/SalehMWS/Muse/internal/content"
 	"github.com/SalehMWS/Muse/internal/instagram"
@@ -76,7 +77,8 @@ func New(ctx context.Context) (*Container, error) {
 	}
 	instagramModule.RegisterRoutes(apiV1, authModule.Middleware)
 
-	contentModule := content.New(db)
+	aiProvider := ai.NewProvider(cfg.AI, log)
+	contentModule := content.New(db, aiProvider)
 	contentModule.RegisterRoutes(apiV1, authModule.Middleware)
 
 	return &Container{

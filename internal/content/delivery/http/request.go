@@ -18,3 +18,7 @@ type UpdateContentRequest struct {
 	Visibility  *string   `json:"visibility"`
 	Tags        *[]string `json:"tags"`
 }
+
+type GenerateCaptionRequest struct {
+	Prompt string `json:"prompt"`
+}

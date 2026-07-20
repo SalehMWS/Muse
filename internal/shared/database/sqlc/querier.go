@@ -11,6 +11,7 @@ import (
 )
 
 type Querier interface {
+	AppendAuditLog(ctx context.Context, arg AppendAuditLogParams) error
 	CancelSchedule(ctx context.Context, arg CancelScheduleParams) error
 	ClaimDueSchedules(ctx context.Context, arg ClaimDueSchedulesParams) ([]Schedule, error)
 	CreateContent(ctx context.Context, arg CreateContentParams) (Content, error)
@@ -32,6 +33,7 @@ type Querier interface {
 	GetSessionByRefreshTokenHash(ctx context.Context, refreshTokenHash string) (Session, error)
 	GetUserByEmail(ctx context.Context, email string) (User, error)
 	GetUserByID(ctx context.Context, id uuid.UUID) (User, error)
+	ListAuditLogsByUser(ctx context.Context, arg ListAuditLogsByUserParams) ([]AuditLog, error)
 	ListContents(ctx context.Context, arg ListContentsParams) ([]Content, error)
 	ListContentsAfter(ctx context.Context, arg ListContentsAfterParams) ([]Content, error)
 	ListDocumentsByUser(ctx context.Context, userID uuid.UUID) ([]Document, error)

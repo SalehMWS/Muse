@@ -4,6 +4,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	auditapp "github.com/SalehMWS/Muse/internal/audit/application"
 	"github.com/SalehMWS/Muse/internal/instagram/application"
 	httpdelivery "github.com/SalehMWS/Muse/internal/instagram/delivery/http"
 	"github.com/SalehMWS/Muse/internal/instagram/infrastructure/meta"
@@ -16,7 +17,7 @@ type Module struct {
 	Handler *httpdelivery.Handler
 }
 
-func New(pool *pgxpool.Pool, cfg config.Instagram) (*Module, error) {
+func New(pool *pgxpool.Pool, cfg config.Instagram, audit *auditapp.Recorder) (*Module, error) {
 	repo := postgres.NewAccountRepository(pool)
 	client := meta.NewOAuthClient(cfg)
 
@@ -33,7 +34,7 @@ func New(pool *pgxpool.Pool, cfg config.Instagram) (*Module, error) {
 	disconnectUC := application.NewDisconnectUseCase(repo)
 
 	return &Module{
-		Handler: httpdelivery.NewHandler(connectUC, callbackUC, listUC, refreshUC, disconnectUC),
+		Handler: httpdelivery.NewHandler(connectUC, callbackUC, listUC, refreshUC, disconnectUC, audit),
 	}, nil
 }
 

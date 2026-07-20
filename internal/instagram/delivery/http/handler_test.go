@@ -31,7 +31,7 @@ func newTestApp(userID uuid.UUID, d deps) *fiber.App {
 	refreshUC := application.NewRefreshUseCase(d.oauth, fakeTokenCipher{}, d.repo)
 	disconnectUC := application.NewDisconnectUseCase(d.repo)
 
-	handler := httpdelivery.NewHandler(connectUC, callbackUC, listUC, refreshUC, disconnectUC)
+	handler := httpdelivery.NewHandler(connectUC, callbackUC, listUC, refreshUC, disconnectUC, nil)
 
 	app := fiber.New()
 	requireAuth := func(c *fiber.Ctx) error {

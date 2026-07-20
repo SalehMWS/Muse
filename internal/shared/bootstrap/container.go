@@ -10,6 +10,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/SalehMWS/Muse/internal/ai"
+	"github.com/SalehMWS/Muse/internal/audit"
 	"github.com/SalehMWS/Muse/internal/auth"
 	"github.com/SalehMWS/Muse/internal/content"
 	"github.com/SalehMWS/Muse/internal/instagram"
@@ -118,11 +119,14 @@ func New(ctx context.Context) (*Container, error) {
 		recorder.RegisterRoutes(app, cfg.Observability.MetricsPath)
 	}
 
-	authModule := auth.New(db, cfg.JWT, cfg.Argon2)
+	auditModule := audit.New(db, log, recorder)
+
+	authModule := auth.New(db, cfg.JWT, cfg.Argon2, auditModule.Recorder)
 	apiV1 := app.Group("/api/v1")
 	authModule.RegisterRoutes(apiV1)
+	auditModule.RegisterRoutes(apiV1, authModule.Middleware)
 
-	instagramModule, err := instagram.New(db, cfg.Instagram)
+	instagramModule, err := instagram.New(db, cfg.Instagram, auditModule.Recorder)
 	if err != nil {
 		_ = redisClient.Close()
 		db.Close()
@@ -146,6 +150,7 @@ func New(ctx context.Context) (*Container, error) {
 		pubinstagram.NewAccountReader(tokenService),
 		pubcontent.NewContentReader(db),
 		recorder,
+		auditModule.Recorder,
 	)
 	publishingModule.RegisterRoutes(apiV1, authModule.Middleware)
 

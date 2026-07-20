@@ -26,6 +26,7 @@ type Metrics struct {
 	Knowledge  *Knowledge
 	Business   *Business
 	RateLimit  *RateLimit
+	Audit      *Audit
 }
 
 func New(service, version, environment string) *Metrics {
@@ -54,6 +55,7 @@ func New(service, version, environment string) *Metrics {
 		Knowledge:  newKnowledge(),
 		Business:   newBusiness(),
 		RateLimit:  newRateLimit(),
+		Audit:      newAudit(),
 	}
 
 	registry.MustRegister(m.HTTP.collectors()...)
@@ -64,6 +66,7 @@ func New(service, version, environment string) *Metrics {
 	registry.MustRegister(m.Knowledge.collectors()...)
 	registry.MustRegister(m.Business.collectors()...)
 	registry.MustRegister(m.RateLimit.collectors()...)
+	registry.MustRegister(m.Audit.collectors()...)
 
 	return m
 }

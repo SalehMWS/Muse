@@ -73,6 +73,11 @@ export async function request<TData>(config: AxiosRequestConfig): Promise<TData>
   const response = await apiClient.request<ApiEnvelope<TData>>(config);
   const envelope = response.data;
 
+  const hasNoBody = response.status === 204 || response.status === 205 || !envelope;
+  if (hasNoBody) {
+    return undefined as TData;
+  }
+
   if (!envelope?.success) {
     throw normalizeError({
       response: { status: response.status, data: envelope, headers: response.headers },

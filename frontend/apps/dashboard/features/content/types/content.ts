@@ -49,6 +49,20 @@ export function toContent(dto: ContentDto): Content {
   };
 }
 
+/**
+ * The backend rejects `status: "published"` on PATCH — publishing happens through
+ * the publish endpoint, so it is excluded here rather than failing at runtime.
+ */
+export interface UpdateContentInput {
+  title?: string;
+  caption?: string;
+  status?: Exclude<ContentStatus, "published">;
+  language?: string;
+  contentType?: string;
+  visibility?: string;
+  tags?: string[];
+}
+
 export interface ContentFilters {
   status?: ContentStatus;
   language?: string;

@@ -4,6 +4,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	auditapp "github.com/SalehMWS/Muse/internal/audit/application"
 	"github.com/SalehMWS/Muse/internal/publishing/application"
 	httpdelivery "github.com/SalehMWS/Muse/internal/publishing/delivery/http"
 	"github.com/SalehMWS/Muse/internal/publishing/infrastructure/meta"
@@ -17,7 +18,7 @@ type Module struct {
 	Publish *application.PublishUseCase
 }
 
-func New(pool *pgxpool.Pool, cfg config.Instagram, accounts application.AccountReader, contents application.ContentReader, recorder *metrics.Metrics) *Module {
+func New(pool *pgxpool.Pool, cfg config.Instagram, accounts application.AccountReader, contents application.ContentReader, recorder *metrics.Metrics, audit *auditapp.Recorder) *Module {
 	var (
 		publishingRecorder *metrics.Publishing
 		businessRecorder   *metrics.Business
@@ -30,7 +31,7 @@ func New(pool *pgxpool.Pool, cfg config.Instagram, accounts application.AccountR
 	repo := postgres.NewPublicationRepository(pool)
 	client := meta.NewPublishClient(cfg.GraphBaseURL, cfg.HTTPTimeout, publishingRecorder)
 
-	publishUC := application.NewPublishUseCase(accounts, contents, client, repo, publishingRecorder, businessRecorder)
+	publishUC := application.NewPublishUseCase(accounts, contents, client, repo, publishingRecorder, businessRecorder, audit)
 	listUC := application.NewListPublicationsUseCase(repo)
 
 	return &Module{

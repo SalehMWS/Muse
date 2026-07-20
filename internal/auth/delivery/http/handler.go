@@ -5,7 +5,10 @@ import (
 	"strings"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/google/uuid"
 
+	auditapp "github.com/SalehMWS/Muse/internal/audit/application"
+	auditdomain "github.com/SalehMWS/Muse/internal/audit/domain"
 	"github.com/SalehMWS/Muse/internal/auth/application"
 	"github.com/SalehMWS/Muse/internal/auth/domain"
 	apperrors "github.com/SalehMWS/Muse/internal/shared/errors"
@@ -18,6 +21,7 @@ type Handler struct {
 	refresh        *application.RefreshUseCase
 	logout         *application.LogoutUseCase
 	getCurrentUser *application.GetCurrentUserUseCase
+	audit          *auditapp.Recorder
 }
 
 func NewHandler(
@@ -26,6 +30,7 @@ func NewHandler(
 	refresh *application.RefreshUseCase,
 	logout *application.LogoutUseCase,
 	getCurrentUser *application.GetCurrentUserUseCase,
+	audit *auditapp.Recorder,
 ) *Handler {
 	return &Handler{
 		register:       register,
@@ -33,7 +38,19 @@ func NewHandler(
 		refresh:        refresh,
 		logout:         logout,
 		getCurrentUser: getCurrentUser,
+		audit:          audit,
 	}
+}
+
+func (h *Handler) recordAudit(c *fiber.Ctx, action auditdomain.Action, result auditdomain.Result, userID *uuid.UUID, metadata map[string]string) {
+	h.audit.Record(c.UserContext(), auditapp.Entry{
+		UserID:    userID,
+		Action:    action,
+		Result:    result,
+		IPAddress: c.IP(),
+		UserAgent: c.Get(fiber.HeaderUserAgent),
+		Metadata:  metadata,
+	})
 }
 
 func (h *Handler) Register(c *fiber.Ctx) error {
@@ -54,6 +71,8 @@ func (h *Handler) Register(c *fiber.Ctx) error {
 	if err != nil {
 		return response.Fail(c, mapError(err))
 	}
+
+	h.recordAudit(c, auditdomain.ActionUserRegistered, auditdomain.ResultSuccess, &out.User.ID, nil)
 
 	return response.Created(c, newUserResponse(out.User))
 }
@@ -76,8 +95,13 @@ func (h *Handler) Login(c *fiber.Ctx) error {
 		UserAgent: c.Get(fiber.HeaderUserAgent),
 	})
 	if err != nil {
+		h.recordAudit(c, auditdomain.ActionUserLoginFailed, auditdomain.ResultFailure, nil, map[string]string{
+			"email": strings.TrimSpace(req.Email),
+		})
 		return response.Fail(c, mapError(err))
 	}
+
+	h.recordAudit(c, auditdomain.ActionUserLoggedIn, auditdomain.ResultSuccess, &out.User.ID, nil)
 
 	return response.OK(c, AuthResponse{
 		User:         newUserResponse(out.User),
@@ -122,6 +146,12 @@ func (h *Handler) Logout(c *fiber.Ctx) error {
 	if err := h.logout.Execute(c.UserContext(), application.LogoutInput{RefreshToken: req.RefreshToken}); err != nil {
 		return response.Fail(c, mapError(err))
 	}
+
+	var userID *uuid.UUID
+	if id, ok := CurrentUserID(c); ok {
+		userID = &id
+	}
+	h.recordAudit(c, auditdomain.ActionUserLoggedOut, auditdomain.ResultSuccess, userID, nil)
 
 	return response.NoContent(c)
 }

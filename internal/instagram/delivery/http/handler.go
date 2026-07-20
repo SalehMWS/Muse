@@ -8,6 +8,8 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 
+	auditapp "github.com/SalehMWS/Muse/internal/audit/application"
+	auditdomain "github.com/SalehMWS/Muse/internal/audit/domain"
 	"github.com/SalehMWS/Muse/internal/instagram/application"
 	"github.com/SalehMWS/Muse/internal/shared/authcontext"
 	apperrors "github.com/SalehMWS/Muse/internal/shared/errors"
@@ -20,6 +22,7 @@ type Handler struct {
 	list       *application.ListUseCase
 	refresh    *application.RefreshUseCase
 	disconnect *application.DisconnectUseCase
+	audit      *auditapp.Recorder
 }
 
 func NewHandler(
@@ -28,6 +31,7 @@ func NewHandler(
 	list *application.ListUseCase,
 	refresh *application.RefreshUseCase,
 	disconnect *application.DisconnectUseCase,
+	audit *auditapp.Recorder,
 ) *Handler {
 	return &Handler{
 		connect:    connect,
@@ -35,7 +39,20 @@ func NewHandler(
 		list:       list,
 		refresh:    refresh,
 		disconnect: disconnect,
+		audit:      audit,
 	}
+}
+
+func (h *Handler) recordAudit(c *fiber.Ctx, action auditdomain.Action, userID *uuid.UUID, accountID string) {
+	h.audit.Record(c.UserContext(), auditapp.Entry{
+		UserID:       userID,
+		Action:       action,
+		Result:       auditdomain.ResultSuccess,
+		ResourceType: "instagram_account",
+		ResourceID:   accountID,
+		IPAddress:    c.IP(),
+		UserAgent:    c.Get(fiber.HeaderUserAgent),
+	})
 }
 
 func (h *Handler) Connect(c *fiber.Ctx) error {
@@ -74,6 +91,8 @@ func (h *Handler) Callback(c *fiber.Ctx) error {
 	if err != nil {
 		return response.Fail(c, mapError(err))
 	}
+
+	h.recordAudit(c, auditdomain.ActionInstagramConnected, &account.UserID, account.ID.String())
 
 	return response.Created(c, newAccountResponse(account, time.Now()))
 }
@@ -131,6 +150,8 @@ func (h *Handler) Disconnect(c *fiber.Ctx) error {
 	if err := h.disconnect.Execute(c.UserContext(), userID, accountID); err != nil {
 		return response.Fail(c, mapError(err))
 	}
+
+	h.recordAudit(c, auditdomain.ActionInstagramDisconnected, &userID, accountID.String())
 
 	return response.NoContent(c)
 }

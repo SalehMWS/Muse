@@ -10,6 +10,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/SalehMWS/Muse/internal/ai"
+	"github.com/SalehMWS/Muse/internal/audit"
 	"github.com/SalehMWS/Muse/internal/auth"
 	"github.com/SalehMWS/Muse/internal/content"
 	"github.com/SalehMWS/Muse/internal/instagram"
@@ -25,6 +26,7 @@ import (
 	applogger "github.com/SalehMWS/Muse/internal/shared/logger"
 	"github.com/SalehMWS/Muse/internal/shared/metrics"
 	"github.com/SalehMWS/Muse/internal/shared/middleware"
+	"github.com/SalehMWS/Muse/internal/shared/ratelimit"
 	"github.com/SalehMWS/Muse/internal/shared/response"
 	"github.com/SalehMWS/Muse/internal/worker"
 )
@@ -73,25 +75,58 @@ func New(ctx context.Context) (*Container, error) {
 	}
 
 	app := fiber.New(fiber.Config{
-		AppName:               cfg.App.Name,
-		DisableStartupMessage: true,
-		ErrorHandler:          fiberErrorHandler,
+		AppName:                 cfg.App.Name,
+		DisableStartupMessage:   true,
+		ErrorHandler:            fiberErrorHandler,
+		BodyLimit:               cfg.HTTP.BodyLimit,
+		ReadTimeout:             cfg.HTTP.ReadTimeout,
+		WriteTimeout:            cfg.HTTP.WriteTimeout,
+		IdleTimeout:             cfg.HTTP.IdleTimeout,
+		EnableTrustedProxyCheck: len(cfg.HTTP.TrustedProxies) > 0,
+		TrustedProxies:          cfg.HTTP.TrustedProxies,
+		ProxyHeader:             proxyHeader(cfg.HTTP),
 	})
 
 	app.Use(middleware.RequestID())
 	app.Use(middleware.Recover(log))
 	app.Use(middleware.Metrics(recorder.HTTP))
 	app.Use(middleware.RequestLogger(log))
+	app.Use(middleware.SecurityHeaders(cfg.Security))
+
+	if cfg.Security.CORSEnabled() {
+		app.Use(middleware.CORS(cfg.Security))
+	}
+
+	if cfg.RateLimit.Enabled {
+		limiter := ratelimit.NewRedisLimiter(redisClient)
+
+		app.Use("/api/v1/auth", middleware.RateLimit(limiter, middleware.RateLimitRule{
+			Scope:    "auth",
+			Limit:    cfg.RateLimit.AuthRequests,
+			Window:   cfg.RateLimit.AuthWindow,
+			FailOpen: cfg.RateLimit.FailOpen,
+		}, recorder.RateLimit, log))
+
+		app.Use("/api/v1", middleware.RateLimit(limiter, middleware.RateLimitRule{
+			Scope:    "api",
+			Limit:    cfg.RateLimit.Requests,
+			Window:   cfg.RateLimit.Window,
+			FailOpen: cfg.RateLimit.FailOpen,
+		}, recorder.RateLimit, log))
+	}
 
 	if cfg.Observability.MetricsEnabled {
 		recorder.RegisterRoutes(app, cfg.Observability.MetricsPath)
 	}
 
-	authModule := auth.New(db, cfg.JWT, cfg.Argon2)
+	auditModule := audit.New(db, log, recorder)
+
+	authModule := auth.New(db, cfg.JWT, cfg.Argon2, auditModule.Recorder)
 	apiV1 := app.Group("/api/v1")
 	authModule.RegisterRoutes(apiV1)
+	auditModule.RegisterRoutes(apiV1, authModule.Middleware)
 
-	instagramModule, err := instagram.New(db, cfg.Instagram)
+	instagramModule, err := instagram.New(db, cfg.Instagram, auditModule.Recorder)
 	if err != nil {
 		_ = redisClient.Close()
 		db.Close()
@@ -115,6 +150,7 @@ func New(ctx context.Context) (*Container, error) {
 		pubinstagram.NewAccountReader(tokenService),
 		pubcontent.NewContentReader(db),
 		recorder,
+		auditModule.Recorder,
 	)
 	publishingModule.RegisterRoutes(apiV1, authModule.Middleware)
 
@@ -187,4 +223,11 @@ func (c *Container) Shutdown(ctx context.Context) error {
 
 func fiberErrorHandler(c *fiber.Ctx, err error) error {
 	return response.Fail(c, err)
+}
+
+func proxyHeader(cfg config.HTTP) string {
+	if len(cfg.TrustedProxies) == 0 {
+		return ""
+	}
+	return fiber.HeaderXForwardedFor
 }

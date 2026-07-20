@@ -24,7 +24,7 @@ func TestRunner_OneTimeSuccess(t *testing.T) {
 	repo.dueQueue = [][]domain.Schedule{{schedule}}
 	publisher := &fakePublisher{}
 
-	runner := application.NewRunner(repo, publisher, fakeCronParser{}, nil, time.Second, 10)
+	runner := application.NewRunner(repo, publisher, fakeCronParser{}, nil, time.Second, 10, nil)
 	runner.Tick(context.Background())
 
 	if publisher.calls != 1 {
@@ -43,7 +43,7 @@ func TestRunner_RecurringReschedules(t *testing.T) {
 	repo.dueQueue = [][]domain.Schedule{{schedule}}
 
 	next := time.Now().Add(24 * time.Hour).UTC()
-	runner := application.NewRunner(repo, &fakePublisher{}, fakeCronParser{next: next}, nil, time.Second, 10)
+	runner := application.NewRunner(repo, &fakePublisher{}, fakeCronParser{next: next}, nil, time.Second, 10, nil)
 	runner.Tick(context.Background())
 
 	got, ok := repo.rescheduled[schedule.ID]
@@ -61,7 +61,7 @@ func TestRunner_FailureRetries(t *testing.T) {
 	schedule.RetryCount = 0
 	repo.dueQueue = [][]domain.Schedule{{schedule}}
 
-	runner := application.NewRunner(repo, &fakePublisher{err: context.DeadlineExceeded}, fakeCronParser{}, nil, time.Second, 10)
+	runner := application.NewRunner(repo, &fakePublisher{err: context.DeadlineExceeded}, fakeCronParser{}, nil, time.Second, 10, nil)
 	runner.Tick(context.Background())
 
 	call, ok := repo.retried[schedule.ID]
@@ -80,7 +80,7 @@ func TestRunner_FailureExhaustsToFailed(t *testing.T) {
 	schedule.MaxRetries = 3
 	repo.dueQueue = [][]domain.Schedule{{schedule}}
 
-	runner := application.NewRunner(repo, &fakePublisher{err: context.DeadlineExceeded}, fakeCronParser{}, nil, time.Second, 10)
+	runner := application.NewRunner(repo, &fakePublisher{err: context.DeadlineExceeded}, fakeCronParser{}, nil, time.Second, 10, nil)
 	runner.Tick(context.Background())
 
 	if _, ok := repo.failed[schedule.ID]; !ok {

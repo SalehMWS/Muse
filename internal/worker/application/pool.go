@@ -2,11 +2,17 @@ package application
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	"go.uber.org/zap"
+
+	"github.com/SalehMWS/Muse/internal/shared/logger"
+	"github.com/SalehMWS/Muse/internal/shared/metrics"
+	"github.com/SalehMWS/Muse/internal/shared/tracing"
+	"github.com/SalehMWS/Muse/internal/worker/domain"
 )
 
 const (
@@ -22,12 +28,19 @@ type Stats struct {
 	Failed       int64 `json:"failed"`
 }
 
-type metrics struct {
+type counters struct {
 	processed    atomic.Int64
 	succeeded    atomic.Int64
 	retried      atomic.Int64
 	deadLettered atomic.Int64
 	failed       atomic.Int64
+}
+
+type PoolOptions struct {
+	Workers  int
+	Block    time.Duration
+	Queue    string
+	Recorder *metrics.Worker
 }
 
 type Pool struct {
@@ -36,25 +49,32 @@ type Pool struct {
 	logger     *zap.Logger
 	workers    int
 	block      time.Duration
-	metrics    metrics
+	queue      string
+	counters   counters
+	recorder   *metrics.Worker
 }
 
-func NewPool(broker Broker, dispatcher *Dispatcher, logger *zap.Logger, workers int, block time.Duration) *Pool {
-	if logger == nil {
-		logger = zap.NewNop()
+func NewPool(broker Broker, dispatcher *Dispatcher, log *zap.Logger, opts PoolOptions) *Pool {
+	if log == nil {
+		log = zap.NewNop()
 	}
-	if workers <= 0 {
-		workers = defaultWorkers
+	if opts.Workers <= 0 {
+		opts.Workers = defaultWorkers
 	}
-	if block <= 0 {
-		block = defaultBlock
+	if opts.Block <= 0 {
+		opts.Block = defaultBlock
+	}
+	if opts.Queue == "" {
+		opts.Queue = "default"
 	}
 	return &Pool{
 		broker:     broker,
 		dispatcher: dispatcher,
-		logger:     logger,
-		workers:    workers,
-		block:      block,
+		logger:     log,
+		workers:    opts.Workers,
+		block:      opts.Block,
+		queue:      opts.Queue,
+		recorder:   opts.Recorder,
 	}
 }
 
@@ -93,65 +113,113 @@ func (p *Pool) loop(ctx context.Context) {
 }
 
 func (p *Pool) handle(ctx context.Context, delivery Delivery) {
-	p.metrics.processed.Add(1)
+	job := delivery.Job
+	jobType := string(job.Type)
 
-	if err := p.dispatcher.Dispatch(ctx, delivery.Job); err != nil {
-		p.onFailure(ctx, delivery, err)
+	p.counters.processed.Add(1)
+	p.recorder.JobStarted()
+
+	jobCtx, scoped := p.scope(ctx, job)
+	start := time.Now()
+	err := p.dispatch(jobCtx, job)
+	elapsed := time.Since(start)
+
+	if err != nil {
+		p.recorder.JobFinished(jobType, metrics.OutcomeFailure, elapsed)
+		p.onFailure(jobCtx, scoped, delivery, err)
 		return
 	}
 
-	if err := p.broker.Ack(ctx, delivery); err != nil {
-		p.logger.Error("worker: ack succeeded job", zap.String("job_id", delivery.Job.ID), zap.Error(err))
+	if ackErr := p.broker.Ack(jobCtx, delivery); ackErr != nil {
+		p.recorder.JobFinished(jobType, metrics.OutcomeFailure, elapsed)
+		scoped.Error("worker: ack succeeded job", zap.Error(ackErr))
 		return
 	}
-	p.metrics.succeeded.Add(1)
+
+	p.counters.succeeded.Add(1)
+	p.recorder.JobFinished(jobType, metrics.OutcomeSuccess, elapsed)
+	scoped.Info("worker: job completed", zap.Duration("duration", elapsed))
 }
 
-func (p *Pool) onFailure(ctx context.Context, delivery Delivery, cause error) {
-	p.metrics.failed.Add(1)
+func (p *Pool) dispatch(ctx context.Context, job domain.Job) (err error) {
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			p.recorder.PanicRecovered()
+			err = fmt.Errorf("worker: handler panic: %v", recovered)
+		}
+	}()
+	return p.dispatcher.Dispatch(ctx, job)
+}
+
+func (p *Pool) scope(ctx context.Context, job domain.Job) (context.Context, *zap.Logger) {
+	ids := tracing.IDs{
+		RequestID:     job.ID,
+		CorrelationID: job.CorrelationID,
+		TraceID:       job.TraceID,
+		SpanID:        tracing.NewSpanID(),
+	}
+	if ids.TraceID == "" {
+		ids.TraceID = tracing.NewTraceID()
+	}
+	if ids.CorrelationID == "" {
+		ids.CorrelationID = job.ID
+	}
+
+	scoped := p.logger.With(append(ids.Fields(),
+		zap.String("module", "worker"),
+		zap.String("job_id", job.ID),
+		zap.String("job_type", string(job.Type)),
+		zap.String("queue", p.queue),
+		zap.Int("attempt", job.Attempt),
+	)...)
+
+	ctx = tracing.WithIDs(ctx, ids)
+	return logger.WithContext(ctx, scoped), scoped
+}
+
+func (p *Pool) onFailure(ctx context.Context, scoped *zap.Logger, delivery Delivery, cause error) {
+	jobType := string(delivery.Job.Type)
+	p.counters.failed.Add(1)
 
 	if delivery.Job.HasAttemptsLeft() {
 		retried := delivery.Job.NextAttempt()
 		if err := p.broker.Enqueue(ctx, retried); err != nil {
-			p.logger.Error("worker: requeue job", zap.String("job_id", delivery.Job.ID), zap.Error(err))
+			scoped.Error("worker: requeue job", zap.Error(err))
 			return
 		}
 		if err := p.broker.Ack(ctx, delivery); err != nil {
-			p.logger.Error("worker: ack requeued job", zap.String("job_id", delivery.Job.ID), zap.Error(err))
+			scoped.Error("worker: ack requeued job", zap.Error(err))
 			return
 		}
-		p.metrics.retried.Add(1)
-		p.logger.Warn("worker: job retried",
-			zap.String("job_id", delivery.Job.ID),
-			zap.Int("attempt", retried.Attempt),
+		p.counters.retried.Add(1)
+		p.recorder.JobOutcome(jobType, metrics.OutcomeRetried)
+		scoped.Warn("worker: job retried",
+			zap.Int("next_attempt", retried.Attempt),
 			zap.Error(cause),
 		)
 		return
 	}
 
 	if err := p.broker.DeadLetter(ctx, delivery.Job, cause.Error()); err != nil {
-		p.logger.Error("worker: dead-letter job", zap.String("job_id", delivery.Job.ID), zap.Error(err))
+		scoped.Error("worker: dead-letter job", zap.Error(err))
 		return
 	}
 	if err := p.broker.Ack(ctx, delivery); err != nil {
-		p.logger.Error("worker: ack dead-lettered job", zap.String("job_id", delivery.Job.ID), zap.Error(err))
+		scoped.Error("worker: ack dead-lettered job", zap.Error(err))
 		return
 	}
-	p.metrics.deadLettered.Add(1)
-	p.logger.Error("worker: job dead-lettered",
-		zap.String("job_id", delivery.Job.ID),
-		zap.String("type", string(delivery.Job.Type)),
-		zap.Error(cause),
-	)
+	p.counters.deadLettered.Add(1)
+	p.recorder.JobOutcome(jobType, metrics.OutcomeDeadLettered)
+	scoped.Error("worker: job dead-lettered", zap.Error(cause))
 }
 
 func (p *Pool) Stats() Stats {
 	return Stats{
-		Processed:    p.metrics.processed.Load(),
-		Succeeded:    p.metrics.succeeded.Load(),
-		Retried:      p.metrics.retried.Load(),
-		DeadLettered: p.metrics.deadLettered.Load(),
-		Failed:       p.metrics.failed.Load(),
+		Processed:    p.counters.processed.Load(),
+		Succeeded:    p.counters.succeeded.Load(),
+		Retried:      p.counters.retried.Load(),
+		DeadLettered: p.counters.deadLettered.Load(),
+		Failed:       p.counters.failed.Load(),
 	}
 }
 

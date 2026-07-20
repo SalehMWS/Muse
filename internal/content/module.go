@@ -8,13 +8,19 @@ import (
 	"github.com/SalehMWS/Muse/internal/content/application"
 	httpdelivery "github.com/SalehMWS/Muse/internal/content/delivery/http"
 	"github.com/SalehMWS/Muse/internal/content/infrastructure/postgres"
+	"github.com/SalehMWS/Muse/internal/shared/metrics"
 )
 
 type Module struct {
 	Handler *httpdelivery.Handler
 }
 
-func New(pool *pgxpool.Pool, aiProvider aiapp.LLMProvider) *Module {
+func New(pool *pgxpool.Pool, aiProvider aiapp.LLMProvider, recorder *metrics.Metrics) *Module {
+	var business *metrics.Business
+	if recorder != nil {
+		business = recorder.Business
+	}
+
 	repo := postgres.NewContentRepository(pool)
 	mediaRepo := postgres.NewMediaRepository(pool)
 
@@ -26,7 +32,7 @@ func New(pool *pgxpool.Pool, aiProvider aiapp.LLMProvider) *Module {
 			application.NewArchiveUseCase(repo),
 			application.NewDuplicateUseCase(repo),
 			application.NewListUseCase(repo),
-			application.NewGenerateCaptionUseCase(repo, aiProvider),
+			application.NewGenerateCaptionUseCase(repo, aiProvider, business),
 			application.NewAttachMediaUseCase(repo, mediaRepo),
 			application.NewListMediaUseCase(repo, mediaRepo),
 			application.NewDeleteMediaUseCase(repo, mediaRepo),

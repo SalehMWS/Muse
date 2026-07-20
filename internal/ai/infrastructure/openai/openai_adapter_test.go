@@ -43,7 +43,7 @@ func completionServer(t *testing.T, content string) (*openai.OpenAICompatiblePro
 		BaseURL: server.URL,
 		APIKey:  "test-key",
 		Model:   "test-model",
-	}, nil)
+	}, nil, nil)
 	return provider, server
 }
 
@@ -78,7 +78,7 @@ func TestGenerateCaptions_StripsCodeFences(t *testing.T) {
 }
 
 func TestGenerateCaptions_EmptyPrompt(t *testing.T) {
-	provider := openai.New(openai.Config{BaseURL: "http://127.0.0.1:0", APIKey: "k", Model: "m"}, nil)
+	provider := openai.New(openai.Config{BaseURL: "http://127.0.0.1:0", APIKey: "k", Model: "m"}, nil, nil)
 	if _, err := provider.GenerateCaptions(context.Background(), "   "); !errors.Is(err, openai.ErrEmptyPrompt) {
 		t.Fatalf("error = %v, want ErrEmptyPrompt", err)
 	}
@@ -91,7 +91,7 @@ func TestGenerateCaptions_NonSuccessStatus(t *testing.T) {
 	}))
 	defer server.Close()
 
-	provider := openai.New(openai.Config{BaseURL: server.URL, APIKey: "bad", Model: "m"}, nil)
+	provider := openai.New(openai.Config{BaseURL: server.URL, APIKey: "bad", Model: "m"}, nil, nil)
 	_, err := provider.GenerateCaptions(context.Background(), "prompt")
 	if !errors.Is(err, openai.ErrProvider) {
 		t.Fatalf("error = %v, want ErrProvider", err)
@@ -107,7 +107,7 @@ func TestGenerateCaptions_ErrorObjectWithOKStatus(t *testing.T) {
 	}))
 	defer server.Close()
 
-	provider := openai.New(openai.Config{BaseURL: server.URL, APIKey: "k", Model: "m"}, nil)
+	provider := openai.New(openai.Config{BaseURL: server.URL, APIKey: "k", Model: "m"}, nil, nil)
 	if _, err := provider.GenerateCaptions(context.Background(), "prompt"); !errors.Is(err, openai.ErrProvider) {
 		t.Fatalf("error = %v, want ErrProvider", err)
 	}

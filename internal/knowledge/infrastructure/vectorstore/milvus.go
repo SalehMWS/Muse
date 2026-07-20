@@ -32,6 +32,13 @@ func NewMilvusStore(c client.Client, collection string) *MilvusStore {
 	return &MilvusStore{client: c, collection: collection}
 }
 
+func (s *MilvusStore) Ping(ctx context.Context) error {
+	if _, err := s.client.HasCollection(ctx, s.collection); err != nil {
+		return fmt.Errorf("has collection: %w", err)
+	}
+	return nil
+}
+
 func (s *MilvusStore) EnsureReady(ctx context.Context, dimension int) error {
 	has, err := s.client.HasCollection(ctx, s.collection)
 	if err != nil {

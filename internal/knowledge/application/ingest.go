@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/SalehMWS/Muse/internal/knowledge/domain"
+	"github.com/SalehMWS/Muse/internal/shared/metrics"
 )
 
 type IngestUseCase struct {
@@ -17,10 +18,20 @@ type IngestUseCase struct {
 	store        VectorStore
 	chunkSize    int
 	chunkOverlap int
+	recorder     *metrics.Knowledge
+	business     *metrics.Business
 }
 
-func NewIngestUseCase(repo DocumentRepository, embedder Embedder, store VectorStore, chunkSize, chunkOverlap int) *IngestUseCase {
-	return &IngestUseCase{repo: repo, embedder: embedder, store: store, chunkSize: chunkSize, chunkOverlap: chunkOverlap}
+func NewIngestUseCase(repo DocumentRepository, embedder Embedder, store VectorStore, chunkSize, chunkOverlap int, recorder *metrics.Knowledge, business *metrics.Business) *IngestUseCase {
+	return &IngestUseCase{
+		repo:         repo,
+		embedder:     embedder,
+		store:        store,
+		chunkSize:    chunkSize,
+		chunkOverlap: chunkOverlap,
+		recorder:     recorder,
+		business:     business,
+	}
 }
 
 type IngestInput struct {
@@ -81,10 +92,20 @@ func (uc *IngestUseCase) Execute(ctx context.Context, in IngestInput) (domain.Do
 		return uc.fail(ctx, created.ID, ErrVectorStore, err)
 	}
 
-	return uc.repo.UpdateStatus(ctx, created.ID, domain.StatusIndexed, len(chunks), nil)
+	indexed, err := uc.repo.UpdateStatus(ctx, created.ID, domain.StatusIndexed, len(chunks), nil)
+	if err != nil {
+		return domain.Document{}, err
+	}
+
+	uc.recorder.Ingested(metrics.OutcomeSuccess, len(chunks))
+	uc.business.Record(metrics.EventDocumentIngested)
+
+	return indexed, nil
 }
 
 func (uc *IngestUseCase) fail(ctx context.Context, id uuid.UUID, sentinel, cause error) (domain.Document, error) {
+	uc.recorder.Ingested(metrics.OutcomeFailure, 0)
+
 	message := cause.Error()
 	_, _ = uc.repo.UpdateStatus(ctx, id, domain.StatusFailed, 0, &message)
 	return domain.Document{}, fmt.Errorf("%w: %v", sentinel, cause)

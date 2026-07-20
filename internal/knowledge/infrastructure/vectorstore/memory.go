@@ -22,6 +22,10 @@ func NewMemoryStore() *MemoryStore {
 	return &MemoryStore{records: map[string]application.VectorRecord{}}
 }
 
+func (s *MemoryStore) Ping(context.Context) error {
+	return nil
+}
+
 func (s *MemoryStore) EnsureReady(context.Context, int) error {
 	return nil
 }

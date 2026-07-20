@@ -12,23 +12,45 @@ import (
 	"github.com/SalehMWS/Muse/internal/knowledge/application"
 	httpdelivery "github.com/SalehMWS/Muse/internal/knowledge/delivery/http"
 	"github.com/SalehMWS/Muse/internal/knowledge/infrastructure/embedding"
+	"github.com/SalehMWS/Muse/internal/knowledge/infrastructure/instrumented"
 	"github.com/SalehMWS/Muse/internal/knowledge/infrastructure/postgres"
 	"github.com/SalehMWS/Muse/internal/knowledge/infrastructure/vectorstore"
 	"github.com/SalehMWS/Muse/internal/shared/config"
+	"github.com/SalehMWS/Muse/internal/shared/metrics"
 )
 
 type Module struct {
 	Handler *httpdelivery.Handler
 	closer  func()
+	store   application.VectorStore
 }
 
-func New(pool *pgxpool.Pool, cfg config.Knowledge, ai config.AI) (*Module, error) {
-	embedder := newEmbedder(cfg, ai)
+func New(pool *pgxpool.Pool, cfg config.Knowledge, ai config.AI, recorder *metrics.Metrics) (*Module, error) {
+	var (
+		knowledgeRecorder *metrics.Knowledge
+		businessRecorder  *metrics.Business
+	)
+	if recorder != nil {
+		knowledgeRecorder = recorder.Knowledge
+		businessRecorder = recorder.Business
+	}
 
-	store, closer, err := newStore(cfg)
+	embedderName := cfg.Embedder
+	if embedderName == "" {
+		embedderName = "local"
+	}
+	storeName := cfg.VectorStore
+	if storeName == "" {
+		storeName = "memory"
+	}
+
+	embedder := instrumented.NewEmbedder(newEmbedder(cfg, ai), embedderName, knowledgeRecorder)
+
+	rawStore, closer, err := newStore(cfg)
 	if err != nil {
 		return nil, err
 	}
+	store := instrumented.NewVectorStore(rawStore, storeName, knowledgeRecorder)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -42,12 +64,13 @@ func New(pool *pgxpool.Pool, cfg config.Knowledge, ai config.AI) (*Module, error
 	repo := postgres.NewDocumentRepository(pool)
 	return &Module{
 		Handler: httpdelivery.NewHandler(
-			application.NewIngestUseCase(repo, embedder, store, cfg.ChunkSize, cfg.ChunkOverlap),
-			application.NewQueryUseCase(embedder, store, cfg.TopK),
+			application.NewIngestUseCase(repo, embedder, store, cfg.ChunkSize, cfg.ChunkOverlap, knowledgeRecorder, businessRecorder),
+			application.NewQueryUseCase(embedder, store, cfg.TopK, knowledgeRecorder),
 			application.NewListDocumentsUseCase(repo),
 			application.NewDeleteDocumentUseCase(repo, store),
 		),
 		closer: closer,
+		store:  store,
 	}, nil
 }
 
@@ -69,6 +92,13 @@ func newStore(cfg config.Knowledge) (application.VectorStore, func(), error) {
 		return vectorstore.NewMilvusStore(client, cfg.MilvusCollection), func() { _ = client.Close() }, nil
 	}
 	return vectorstore.NewMemoryStore(), nil, nil
+}
+
+func (m *Module) Ping(ctx context.Context) error {
+	if m.store == nil {
+		return nil
+	}
+	return m.store.Ping(ctx)
 }
 
 func (m *Module) Close() {

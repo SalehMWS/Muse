@@ -9,6 +9,7 @@ import (
 	"github.com/SalehMWS/Muse/internal/publishing/infrastructure/meta"
 	"github.com/SalehMWS/Muse/internal/publishing/infrastructure/postgres"
 	"github.com/SalehMWS/Muse/internal/shared/config"
+	"github.com/SalehMWS/Muse/internal/shared/metrics"
 )
 
 type Module struct {
@@ -16,11 +17,20 @@ type Module struct {
 	Publish *application.PublishUseCase
 }
 
-func New(pool *pgxpool.Pool, cfg config.Instagram, accounts application.AccountReader, contents application.ContentReader) *Module {
-	repo := postgres.NewPublicationRepository(pool)
-	client := meta.NewPublishClient(cfg.GraphBaseURL, cfg.HTTPTimeout)
+func New(pool *pgxpool.Pool, cfg config.Instagram, accounts application.AccountReader, contents application.ContentReader, recorder *metrics.Metrics) *Module {
+	var (
+		publishingRecorder *metrics.Publishing
+		businessRecorder   *metrics.Business
+	)
+	if recorder != nil {
+		publishingRecorder = recorder.Publishing
+		businessRecorder = recorder.Business
+	}
 
-	publishUC := application.NewPublishUseCase(accounts, contents, client, repo)
+	repo := postgres.NewPublicationRepository(pool)
+	client := meta.NewPublishClient(cfg.GraphBaseURL, cfg.HTTPTimeout, publishingRecorder)
+
+	publishUC := application.NewPublishUseCase(accounts, contents, client, repo, publishingRecorder, businessRecorder)
 	listUC := application.NewListPublicationsUseCase(repo)
 
 	return &Module{

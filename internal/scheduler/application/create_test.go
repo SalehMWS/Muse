@@ -23,7 +23,7 @@ func baseInput() application.CreateScheduleInput {
 
 func TestCreateScheduleUseCase_OneTime(t *testing.T) {
 	repo := newFakeScheduleRepository()
-	uc := application.NewCreateScheduleUseCase(repo, fakeCronParser{}, fakeContentChecker{})
+	uc := application.NewCreateScheduleUseCase(repo, fakeCronParser{}, fakeContentChecker{}, nil)
 
 	future := time.Now().Add(time.Hour)
 	in := baseInput()
@@ -44,7 +44,7 @@ func TestCreateScheduleUseCase_OneTime(t *testing.T) {
 func TestCreateScheduleUseCase_Cron(t *testing.T) {
 	repo := newFakeScheduleRepository()
 	next := time.Now().Add(30 * time.Minute).UTC()
-	uc := application.NewCreateScheduleUseCase(repo, fakeCronParser{next: next}, fakeContentChecker{})
+	uc := application.NewCreateScheduleUseCase(repo, fakeCronParser{next: next}, fakeContentChecker{}, nil)
 
 	in := baseInput()
 	in.CronExpression = "0 12 * * *"
@@ -65,7 +65,7 @@ func TestCreateScheduleUseCase_Validation(t *testing.T) {
 	repo := newFakeScheduleRepository()
 
 	t.Run("past time", func(t *testing.T) {
-		uc := application.NewCreateScheduleUseCase(repo, fakeCronParser{}, fakeContentChecker{})
+		uc := application.NewCreateScheduleUseCase(repo, fakeCronParser{}, fakeContentChecker{}, nil)
 		past := time.Now().Add(-time.Hour)
 		in := baseInput()
 		in.ScheduledFor = &past
@@ -75,14 +75,14 @@ func TestCreateScheduleUseCase_Validation(t *testing.T) {
 	})
 
 	t.Run("no time and no cron", func(t *testing.T) {
-		uc := application.NewCreateScheduleUseCase(repo, fakeCronParser{}, fakeContentChecker{})
+		uc := application.NewCreateScheduleUseCase(repo, fakeCronParser{}, fakeContentChecker{}, nil)
 		if _, err := uc.Execute(context.Background(), baseInput()); !errors.Is(err, application.ErrScheduleTimeRequired) {
 			t.Fatalf("error = %v, want %v", err, application.ErrScheduleTimeRequired)
 		}
 	})
 
 	t.Run("invalid timezone", func(t *testing.T) {
-		uc := application.NewCreateScheduleUseCase(repo, fakeCronParser{}, fakeContentChecker{})
+		uc := application.NewCreateScheduleUseCase(repo, fakeCronParser{}, fakeContentChecker{}, nil)
 		in := baseInput()
 		in.Timezone = "Mars/Phobos"
 		future := time.Now().Add(time.Hour)
@@ -93,7 +93,7 @@ func TestCreateScheduleUseCase_Validation(t *testing.T) {
 	})
 
 	t.Run("invalid cron", func(t *testing.T) {
-		uc := application.NewCreateScheduleUseCase(repo, fakeCronParser{validateErr: errors.New("bad")}, fakeContentChecker{})
+		uc := application.NewCreateScheduleUseCase(repo, fakeCronParser{validateErr: errors.New("bad")}, fakeContentChecker{}, nil)
 		in := baseInput()
 		in.CronExpression = "not cron"
 		if _, err := uc.Execute(context.Background(), in); !errors.Is(err, application.ErrInvalidCron) {
@@ -102,7 +102,7 @@ func TestCreateScheduleUseCase_Validation(t *testing.T) {
 	})
 
 	t.Run("content not owned", func(t *testing.T) {
-		uc := application.NewCreateScheduleUseCase(repo, fakeCronParser{}, fakeContentChecker{err: application.ErrContentNotFound})
+		uc := application.NewCreateScheduleUseCase(repo, fakeCronParser{}, fakeContentChecker{err: application.ErrContentNotFound}, nil)
 		future := time.Now().Add(time.Hour)
 		in := baseInput()
 		in.ScheduledFor = &future

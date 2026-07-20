@@ -20,24 +20,26 @@ const (
 )
 
 type Config struct {
-	App        App
-	HTTP       HTTP
-	Log        Log
-	Postgres   Postgres
-	Redis      Redis
-	Migrations Migrations
-	JWT        JWT
-	Argon2     Argon2
-	Instagram  Instagram
-	AI         AI
-	Scheduler  Scheduler
-	Worker     Worker
-	Knowledge  Knowledge
+	App           App
+	HTTP          HTTP
+	Log           Log
+	Postgres      Postgres
+	Redis         Redis
+	Migrations    Migrations
+	JWT           JWT
+	Argon2        Argon2
+	Instagram     Instagram
+	AI            AI
+	Scheduler     Scheduler
+	Worker        Worker
+	Knowledge     Knowledge
+	Observability Observability
 }
 
 type App struct {
-	Name string
-	Env  Environment
+	Name    string
+	Env     Environment
+	Version string
 }
 
 func (a App) IsProduction() bool {
@@ -128,6 +130,12 @@ type Scheduler struct {
 
 type Worker struct {
 	Concurrency int
+}
+
+type Observability struct {
+	MetricsEnabled     bool
+	MetricsPath        string
+	QueueDepthInterval time.Duration
 }
 
 type Knowledge struct {
@@ -276,10 +284,21 @@ func Load() (*Config, error) {
 		return nil, fmt.Errorf("load config: %w", err)
 	}
 
+	metricsEnabled, err := getEnvBool("METRICS_ENABLED", true)
+	if err != nil {
+		return nil, fmt.Errorf("load config: %w", err)
+	}
+
+	queueDepthInterval, err := getEnvDuration("METRICS_QUEUE_DEPTH_INTERVAL", 15*time.Second)
+	if err != nil {
+		return nil, fmt.Errorf("load config: %w", err)
+	}
+
 	cfg := &Config{
 		App: App{
-			Name: getEnv("APP_NAME", "novaflow"),
-			Env:  env,
+			Name:    getEnv("APP_NAME", "novaflow"),
+			Env:     env,
+			Version: getEnv("APP_VERSION", "dev"),
 		},
 		HTTP: HTTP{
 			Port:            httpPort,
@@ -359,6 +378,11 @@ func Load() (*Config, error) {
 			ChunkSize:        knowledgeChunkSize,
 			ChunkOverlap:     knowledgeChunkOverlap,
 			TopK:             knowledgeTopK,
+		},
+		Observability: Observability{
+			MetricsEnabled:     metricsEnabled,
+			MetricsPath:        getEnv("METRICS_PATH", "/metrics"),
+			QueueDepthInterval: queueDepthInterval,
 		},
 	}
 
@@ -466,6 +490,19 @@ func getEnvUint8(key string, fallback uint8) (uint8, error) {
 		return 0, fmt.Errorf("parse %s: %w", key, err)
 	}
 	return uint8(parsed), nil
+}
+
+func getEnvBool(key string, fallback bool) (bool, error) {
+	value, ok := os.LookupEnv(key)
+	if !ok || strings.TrimSpace(value) == "" {
+		return fallback, nil
+	}
+
+	parsed, err := strconv.ParseBool(strings.TrimSpace(value))
+	if err != nil {
+		return false, fmt.Errorf("parse %s: %w", key, err)
+	}
+	return parsed, nil
 }
 
 func getEnvDuration(key string, fallback time.Duration) (time.Duration, error) {

@@ -8,18 +8,20 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/SalehMWS/Muse/internal/scheduler/domain"
+	"github.com/SalehMWS/Muse/internal/shared/metrics"
 )
 
 const defaultMaxRetries = 3
 
 type CreateScheduleUseCase struct {
-	repo    ScheduleRepository
-	cron    CronParser
-	content ContentChecker
+	repo     ScheduleRepository
+	cron     CronParser
+	content  ContentChecker
+	business *metrics.Business
 }
 
-func NewCreateScheduleUseCase(repo ScheduleRepository, cron CronParser, content ContentChecker) *CreateScheduleUseCase {
-	return &CreateScheduleUseCase{repo: repo, cron: cron, content: content}
+func NewCreateScheduleUseCase(repo ScheduleRepository, cron CronParser, content ContentChecker, business *metrics.Business) *CreateScheduleUseCase {
+	return &CreateScheduleUseCase{repo: repo, cron: cron, content: content, business: business}
 }
 
 type CreateScheduleInput struct {
@@ -93,5 +95,12 @@ func (uc *CreateScheduleUseCase) Execute(ctx context.Context, in CreateScheduleI
 		MaxRetries:         maxRetries,
 	}
 
-	return uc.repo.Create(ctx, schedule)
+	created, err := uc.repo.Create(ctx, schedule)
+	if err != nil {
+		return domain.Schedule{}, err
+	}
+
+	uc.business.Record(metrics.EventScheduleCreated)
+
+	return created, nil
 }

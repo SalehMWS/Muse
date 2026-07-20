@@ -9,15 +9,17 @@ import (
 
 	aiapp "github.com/SalehMWS/Muse/internal/ai/application"
 	"github.com/SalehMWS/Muse/internal/content/domain"
+	"github.com/SalehMWS/Muse/internal/shared/metrics"
 )
 
 type GenerateCaptionUseCase struct {
-	repo ContentRepository
-	ai   aiapp.LLMProvider
+	repo     ContentRepository
+	ai       aiapp.LLMProvider
+	business *metrics.Business
 }
 
-func NewGenerateCaptionUseCase(repo ContentRepository, ai aiapp.LLMProvider) *GenerateCaptionUseCase {
-	return &GenerateCaptionUseCase{repo: repo, ai: ai}
+func NewGenerateCaptionUseCase(repo ContentRepository, ai aiapp.LLMProvider, business *metrics.Business) *GenerateCaptionUseCase {
+	return &GenerateCaptionUseCase{repo: repo, ai: ai, business: business}
 }
 
 func (uc *GenerateCaptionUseCase) Execute(ctx context.Context, userID, contentID uuid.UUID, promptOverride string) (domain.Content, error) {
@@ -42,7 +44,14 @@ func (uc *GenerateCaptionUseCase) Execute(ctx context.Context, userID, contentID
 		return domain.Content{}, err
 	}
 
-	return uc.repo.Update(ctx, content)
+	updated, err := uc.repo.Update(ctx, content)
+	if err != nil {
+		return domain.Content{}, err
+	}
+
+	uc.business.Record(metrics.EventCaptionGenerated)
+
+	return updated, nil
 }
 
 func defaultCaptionPrompt(content domain.Content) string {

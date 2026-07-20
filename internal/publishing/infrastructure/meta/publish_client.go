@@ -12,26 +12,35 @@ import (
 	"time"
 
 	"github.com/SalehMWS/Muse/internal/publishing/application"
+	"github.com/SalehMWS/Muse/internal/shared/metrics"
 )
 
 const defaultTimeout = 30 * time.Second
+
+const (
+	opCreateContainer = "create_container"
+	opMediaPublish    = "media_publish"
+	opPermalink       = "permalink"
+)
 
 var ErrGraphAPI = errors.New("instagram graph api error")
 
 type PublishClient struct {
 	baseURL    string
 	httpClient *http.Client
+	recorder   *metrics.Publishing
 }
 
 var _ application.PublishClient = (*PublishClient)(nil)
 
-func NewPublishClient(baseURL string, timeout time.Duration) *PublishClient {
+func NewPublishClient(baseURL string, timeout time.Duration, recorder *metrics.Publishing) *PublishClient {
 	if timeout <= 0 {
 		timeout = defaultTimeout
 	}
 	return &PublishClient{
 		baseURL:    strings.TrimRight(baseURL, "/"),
 		httpClient: &http.Client{Timeout: timeout},
+		recorder:   recorder,
 	}
 }
 
@@ -80,7 +89,7 @@ func (c *PublishClient) Publish(ctx context.Context, cred application.Credential
 	form.Set("access_token", cred.AccessToken)
 
 	var resp idResponse
-	if err := c.postForm(ctx, c.baseURL+"/"+cred.InstagramUserID+"/media_publish", form, &resp); err != nil {
+	if err := c.postForm(ctx, opMediaPublish, c.baseURL+"/"+cred.InstagramUserID+"/media_publish", form, &resp); err != nil {
 		return application.PublishedMedia{}, err
 	}
 	if resp.ID == "" {
@@ -93,7 +102,7 @@ func (c *PublishClient) Publish(ctx context.Context, cred application.Credential
 
 func (c *PublishClient) createContainer(ctx context.Context, cred application.Credential, form url.Values) (string, error) {
 	var resp idResponse
-	if err := c.postForm(ctx, c.baseURL+"/"+cred.InstagramUserID+"/media", form, &resp); err != nil {
+	if err := c.postForm(ctx, opCreateContainer, c.baseURL+"/"+cred.InstagramUserID+"/media", form, &resp); err != nil {
 		return "", err
 	}
 	if resp.ID == "" {
@@ -113,22 +122,27 @@ func (c *PublishClient) permalink(ctx context.Context, cred application.Credenti
 	}
 
 	var resp permalinkResponse
-	if err := c.do(req, &resp); err != nil {
+	if err := c.do(opPermalink, req, &resp); err != nil {
 		return "", err
 	}
 	return resp.Permalink, nil
 }
 
-func (c *PublishClient) postForm(ctx context.Context, endpoint string, form url.Values, out any) error {
+func (c *PublishClient) postForm(ctx context.Context, operation, endpoint string, form url.Values, out any) error {
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, strings.NewReader(form.Encode()))
 	if err != nil {
 		return fmt.Errorf("%w: build request: %v", ErrGraphAPI, err)
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	return c.do(req, out)
+	return c.do(operation, req, out)
 }
 
-func (c *PublishClient) do(req *http.Request, out any) error {
+func (c *PublishClient) do(operation string, req *http.Request, out any) (err error) {
+	start := time.Now()
+	defer func() {
+		c.recorder.APICall(operation, metrics.Outcome(err), time.Since(start))
+	}()
+
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("%w: %v", ErrGraphAPI, err)

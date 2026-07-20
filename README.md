@@ -32,7 +32,7 @@ touching business logic.
 ```bash
 cp configs/.env.example configs/.env
 
-make docker-up     # start postgres + redis (+ api once built)
+make docker-up     # start postgres, redis, milvus, prometheus, grafana (+ api once built)
 make migrate-up    # apply database migrations
 make run           # run the API locally against the containers above
 ```
@@ -42,6 +42,8 @@ Health checks:
 ```bash
 curl localhost:8080/health/live
 curl localhost:8080/health/ready
+curl localhost:8080/health/startup
+curl localhost:8080/metrics
 ```
 
 ## Development
@@ -85,6 +87,8 @@ communicate through interfaces or events.
 | Vector store | Milvus |
 | Object storage | MinIO |
 | Logging | zap (structured) |
+| Metrics | Prometheus (client_golang) |
+| Dashboards | Grafana (provisioned) |
 | Deployment | Docker Compose → Kubernetes (future) |
 
 ## Status
@@ -199,3 +203,37 @@ The embedder and vector store are behind ports: the embedder is a deterministic
 local one by default (`KNOWLEDGE_EMBEDDER=local`, no API key) or an
 OpenAI-compatible `/v1/embeddings` client; the vector store is in-memory by
 default or Milvus (`KNOWLEDGE_VECTOR_STORE=milvus`).
+
+Milestone 9 — Observability complete. Prometheus metrics for every subsystem,
+provisioned Grafana dashboards, alert rules, request-scoped structured logging
+with correlation and trace IDs that workers inherit, and Kubernetes-shaped
+health probes.
+
+```
+GET /metrics         Prometheus exposition (HTTP, worker, queue, scheduler,
+                     AI, publishing, knowledge, business, pool, Go runtime)
+GET /health/live     liveness — process is up
+GET /health/ready    readiness — postgres, redis, queue (+ milvus when enabled)
+GET /health/startup  startup — configuration, migrations, dependencies
+```
+
+Every request carries a request ID, a correlation ID (`X-Correlation-ID`, echoed
+and inherited), and a trace ID (`traceparent` honoured when present). Those IDs
+are attached to every log line and travel inside the job contract, so a worker
+logs the same `trace_id` as the HTTP request that enqueued the job. Full
+OpenTelemetry export is deliberately deferred — the instrumentation is ready.
+
+```bash
+make docker-up                       # now also starts prometheus, grafana, milvus
+open http://localhost:9090           # Prometheus (targets, alerts)
+open http://localhost:3030           # Grafana (admin/admin), NovaFlow folder
+```
+
+Three dashboards are provisioned: **API** (throughput, latency quantiles, error
+rate, pool), **Workers & Queue** (job outcomes, execution time, queue and DLQ
+depth, scheduler drift), and **Business & AI** (posts published, captions
+generated, schedules, documents, token usage, retrieval latency). Alert rules
+cover API downtime, 5xx rate, latency budget burn, DLQ growth, queue backlog,
+worker panics, and Instagram/AI failure rates. Metrics are exposed
+unauthenticated on the API port for in-cluster scraping — set
+`METRICS_ENABLED=false` to turn the endpoint off.

@@ -22,7 +22,7 @@ func TestGenerateCaptionUseCase_Execute(t *testing.T) {
 			Caption:  "Slow mornings, strong espresso.",
 			Hashtags: []string{"#coffee", "espresso"},
 		}}
-		uc := application.NewGenerateCaptionUseCase(repo, provider)
+		uc := application.NewGenerateCaptionUseCase(repo, provider, nil)
 
 		out, err := uc.Execute(context.Background(), userID, created.ID, "")
 		if err != nil {
@@ -44,7 +44,7 @@ func TestGenerateCaptionUseCase_Execute(t *testing.T) {
 		userID := uuid.New()
 		created, _ := application.NewCreateUseCase(repo).Execute(context.Background(), userID, domain.NewContentInput{Title: "Ignored"})
 		provider := &fakeLLMProvider{result: &aiapp.CaptionResult{Caption: "c", Hashtags: []string{"#a"}}}
-		uc := application.NewGenerateCaptionUseCase(repo, provider)
+		uc := application.NewGenerateCaptionUseCase(repo, provider, nil)
 
 		if _, err := uc.Execute(context.Background(), userID, created.ID, "custom prompt"); err != nil {
 			t.Fatalf("Execute() unexpected error: %v", err)
@@ -58,7 +58,7 @@ func TestGenerateCaptionUseCase_Execute(t *testing.T) {
 		repo := newFakeContentRepository()
 		userID := uuid.New()
 		created, _ := application.NewCreateUseCase(repo).Execute(context.Background(), userID, domain.NewContentInput{Title: "x"})
-		uc := application.NewGenerateCaptionUseCase(repo, &fakeLLMProvider{err: errors.New("provider down")})
+		uc := application.NewGenerateCaptionUseCase(repo, &fakeLLMProvider{err: errors.New("provider down")}, nil)
 
 		if _, err := uc.Execute(context.Background(), userID, created.ID, ""); !errors.Is(err, application.ErrCaptionUnavailable) {
 			t.Fatalf("Execute() error = %v, want %v", err, application.ErrCaptionUnavailable)
@@ -66,7 +66,7 @@ func TestGenerateCaptionUseCase_Execute(t *testing.T) {
 	})
 
 	t.Run("unknown content", func(t *testing.T) {
-		uc := application.NewGenerateCaptionUseCase(newFakeContentRepository(), &fakeLLMProvider{})
+		uc := application.NewGenerateCaptionUseCase(newFakeContentRepository(), &fakeLLMProvider{}, nil)
 		if _, err := uc.Execute(context.Background(), uuid.New(), uuid.New(), ""); !errors.Is(err, application.ErrContentNotFound) {
 			t.Fatalf("Execute() error = %v, want %v", err, application.ErrContentNotFound)
 		}

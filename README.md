@@ -237,3 +237,33 @@ cover API downtime, 5xx rate, latency budget burn, DLQ growth, queue backlog,
 worker panics, and Instagram/AI failure rates. Metrics are exposed
 unauthenticated on the API port for in-cluster scraping — set
 `METRICS_ENABLED=false` to turn the endpoint off.
+
+Milestone 10 — API hardening in progress. Distributed rate limiting, security
+headers, CORS allowlisting, and request size and timeout limits.
+
+Rate limiting is a Redis-backed sliding window, so quotas hold across every API
+replica rather than per process. Two tiers apply, both keyed by client IP: a
+strict tier on `/api/v1/auth` to blunt credential brute force, and a general
+tier across `/api/v1`. Health and metrics endpoints sit outside `/api/v1` and
+are never limited, so probes and scrapes cannot be throttled. Responses carry
+`X-RateLimit-Limit`, `X-RateLimit-Remaining`, and `X-RateLimit-Reset`, always
+reporting whichever tier is closest to its limit; a rejection returns `429` with
+`Retry-After`.
+
+```bash
+RATE_LIMIT_REQUESTS=100        # general tier, per window
+RATE_LIMIT_AUTH_REQUESTS=10    # /api/v1/auth tier
+RATE_LIMIT_WINDOW=1m
+RATE_LIMIT_FAIL_OPEN=true      # serve or 503 when Redis is unreachable
+```
+
+Security headers (CSP, HSTS, `X-Frame-Options`, `X-Content-Type-Options`,
+`Referrer-Policy`, `Permissions-Policy`) are set on every response. HSTS is
+emitted only over HTTPS and defaults on in production. CORS stays disabled until
+`SECURITY_CORS_ALLOWED_ORIGINS` names an explicit allowlist — a wildcard origin
+is rejected at startup in production and whenever credentials are allowed.
+
+Request bodies are capped by `HTTP_BODY_LIMIT`, and read, write, and idle
+timeouts bound slow-client attacks (Fiber ships with none by default).
+`X-Forwarded-For` is trusted for the client IP only when `HTTP_TRUSTED_PROXIES`
+lists the proxies — otherwise a client could spoof its IP and sidestep its quota.

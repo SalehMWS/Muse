@@ -40,7 +40,7 @@ type QueryOutput struct {
 func (uc *QueryUseCase) Execute(ctx context.Context, in QueryInput) (QueryOutput, error) {
 	query := strings.TrimSpace(in.Query)
 	if query == "" {
-		return QueryOutput{}, ErrEmptyContent
+		return QueryOutput{}, ErrEmptyQuery
 	}
 
 	topK := in.TopK

@@ -12,6 +12,8 @@ const (
 	OutcomeFailure      = "failure"
 	OutcomeRetried      = "retried"
 	OutcomeDeadLettered = "dead_lettered"
+	OutcomeAllowed      = "allowed"
+	OutcomeLimited      = "limited"
 )
 
 type Metrics struct {
@@ -23,6 +25,7 @@ type Metrics struct {
 	Publishing *Publishing
 	Knowledge  *Knowledge
 	Business   *Business
+	RateLimit  *RateLimit
 }
 
 func New(service, version, environment string) *Metrics {
@@ -50,6 +53,7 @@ func New(service, version, environment string) *Metrics {
 		Publishing: newPublishing(),
 		Knowledge:  newKnowledge(),
 		Business:   newBusiness(),
+		RateLimit:  newRateLimit(),
 	}
 
 	registry.MustRegister(m.HTTP.collectors()...)
@@ -59,6 +63,7 @@ func New(service, version, environment string) *Metrics {
 	registry.MustRegister(m.Publishing.collectors()...)
 	registry.MustRegister(m.Knowledge.collectors()...)
 	registry.MustRegister(m.Business.collectors()...)
+	registry.MustRegister(m.RateLimit.collectors()...)
 
 	return m
 }

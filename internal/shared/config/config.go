@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -34,6 +35,8 @@ type Config struct {
 	Worker        Worker
 	Knowledge     Knowledge
 	Observability Observability
+	Security      Security
+	RateLimit     RateLimit
 }
 
 type App struct {
@@ -49,6 +52,38 @@ func (a App) IsProduction() bool {
 type HTTP struct {
 	Port            int
 	ShutdownTimeout time.Duration
+	BodyLimit       int
+	ReadTimeout     time.Duration
+	WriteTimeout    time.Duration
+	IdleTimeout     time.Duration
+	TrustedProxies  []string
+}
+
+type Security struct {
+	CORSAllowedOrigins    []string
+	CORSAllowedMethods    string
+	CORSAllowedHeaders    string
+	CORSAllowCredentials  bool
+	CORSMaxAge            time.Duration
+	HSTSEnabled           bool
+	HSTSMaxAge            time.Duration
+	ContentSecurityPolicy string
+	FrameOptions          string
+	ReferrerPolicy        string
+	PermissionsPolicy     string
+}
+
+func (s Security) CORSEnabled() bool {
+	return len(s.CORSAllowedOrigins) > 0
+}
+
+type RateLimit struct {
+	Enabled      bool
+	Requests     int
+	Window       time.Duration
+	AuthRequests int
+	AuthWindow   time.Duration
+	FailOpen     bool
 }
 
 type Log struct {
@@ -294,6 +329,76 @@ func Load() (*Config, error) {
 		return nil, fmt.Errorf("load config: %w", err)
 	}
 
+	bodyLimit, err := getEnvInt("HTTP_BODY_LIMIT", 4*1024*1024)
+	if err != nil {
+		return nil, fmt.Errorf("load config: %w", err)
+	}
+
+	readTimeout, err := getEnvDuration("HTTP_READ_TIMEOUT", 15*time.Second)
+	if err != nil {
+		return nil, fmt.Errorf("load config: %w", err)
+	}
+
+	writeTimeout, err := getEnvDuration("HTTP_WRITE_TIMEOUT", 30*time.Second)
+	if err != nil {
+		return nil, fmt.Errorf("load config: %w", err)
+	}
+
+	idleTimeout, err := getEnvDuration("HTTP_IDLE_TIMEOUT", 60*time.Second)
+	if err != nil {
+		return nil, fmt.Errorf("load config: %w", err)
+	}
+
+	corsAllowCredentials, err := getEnvBool("SECURITY_CORS_ALLOW_CREDENTIALS", false)
+	if err != nil {
+		return nil, fmt.Errorf("load config: %w", err)
+	}
+
+	corsMaxAge, err := getEnvDuration("SECURITY_CORS_MAX_AGE", 12*time.Hour)
+	if err != nil {
+		return nil, fmt.Errorf("load config: %w", err)
+	}
+
+	hstsEnabled, err := getEnvBool("SECURITY_HSTS_ENABLED", env == EnvProduction)
+	if err != nil {
+		return nil, fmt.Errorf("load config: %w", err)
+	}
+
+	hstsMaxAge, err := getEnvDuration("SECURITY_HSTS_MAX_AGE", 365*24*time.Hour)
+	if err != nil {
+		return nil, fmt.Errorf("load config: %w", err)
+	}
+
+	rateLimitEnabled, err := getEnvBool("RATE_LIMIT_ENABLED", true)
+	if err != nil {
+		return nil, fmt.Errorf("load config: %w", err)
+	}
+
+	rateLimitRequests, err := getEnvInt("RATE_LIMIT_REQUESTS", 100)
+	if err != nil {
+		return nil, fmt.Errorf("load config: %w", err)
+	}
+
+	rateLimitWindow, err := getEnvDuration("RATE_LIMIT_WINDOW", time.Minute)
+	if err != nil {
+		return nil, fmt.Errorf("load config: %w", err)
+	}
+
+	rateLimitAuthRequests, err := getEnvInt("RATE_LIMIT_AUTH_REQUESTS", 10)
+	if err != nil {
+		return nil, fmt.Errorf("load config: %w", err)
+	}
+
+	rateLimitAuthWindow, err := getEnvDuration("RATE_LIMIT_AUTH_WINDOW", time.Minute)
+	if err != nil {
+		return nil, fmt.Errorf("load config: %w", err)
+	}
+
+	rateLimitFailOpen, err := getEnvBool("RATE_LIMIT_FAIL_OPEN", true)
+	if err != nil {
+		return nil, fmt.Errorf("load config: %w", err)
+	}
+
 	cfg := &Config{
 		App: App{
 			Name:    getEnv("APP_NAME", "novaflow"),
@@ -303,6 +408,11 @@ func Load() (*Config, error) {
 		HTTP: HTTP{
 			Port:            httpPort,
 			ShutdownTimeout: shutdownTimeout,
+			BodyLimit:       bodyLimit,
+			ReadTimeout:     readTimeout,
+			WriteTimeout:    writeTimeout,
+			IdleTimeout:     idleTimeout,
+			TrustedProxies:  getEnvList("HTTP_TRUSTED_PROXIES"),
 		},
 		Log: Log{
 			Level: getEnv("LOG_LEVEL", "info"),
@@ -384,6 +494,27 @@ func Load() (*Config, error) {
 			MetricsPath:        getEnv("METRICS_PATH", "/metrics"),
 			QueueDepthInterval: queueDepthInterval,
 		},
+		Security: Security{
+			CORSAllowedOrigins:    getEnvList("SECURITY_CORS_ALLOWED_ORIGINS"),
+			CORSAllowedMethods:    getEnv("SECURITY_CORS_ALLOWED_METHODS", "GET,POST,PUT,PATCH,DELETE,OPTIONS"),
+			CORSAllowedHeaders:    getEnv("SECURITY_CORS_ALLOWED_HEADERS", "Authorization,Content-Type,X-Correlation-ID,X-Request-ID"),
+			CORSAllowCredentials:  corsAllowCredentials,
+			CORSMaxAge:            corsMaxAge,
+			HSTSEnabled:           hstsEnabled,
+			HSTSMaxAge:            hstsMaxAge,
+			ContentSecurityPolicy: getEnv("SECURITY_CONTENT_SECURITY_POLICY", "default-src 'none'; frame-ancestors 'none'"),
+			FrameOptions:          getEnv("SECURITY_FRAME_OPTIONS", "DENY"),
+			ReferrerPolicy:        getEnv("SECURITY_REFERRER_POLICY", "no-referrer"),
+			PermissionsPolicy:     getEnv("SECURITY_PERMISSIONS_POLICY", "geolocation=(), microphone=(), camera=()"),
+		},
+		RateLimit: RateLimit{
+			Enabled:      rateLimitEnabled,
+			Requests:     rateLimitRequests,
+			Window:       rateLimitWindow,
+			AuthRequests: rateLimitAuthRequests,
+			AuthWindow:   rateLimitAuthWindow,
+			FailOpen:     rateLimitFailOpen,
+		},
 	}
 
 	if err := cfg.validate(); err != nil {
@@ -427,9 +558,33 @@ func (c *Config) validate() error {
 		if c.AI.BaseURL == "" || c.AI.Model == "" {
 			return fmt.Errorf("AI_BASE_URL and AI_MODEL are required in production")
 		}
+		if c.Security.hasWildcardOrigin() {
+			return fmt.Errorf("SECURITY_CORS_ALLOWED_ORIGINS must be an explicit allowlist in production, not %q", "*")
+		}
+	}
+
+	if c.Security.hasWildcardOrigin() && c.Security.CORSAllowCredentials {
+		return fmt.Errorf("SECURITY_CORS_ALLOW_CREDENTIALS cannot be enabled with a wildcard origin")
+	}
+
+	if c.RateLimit.Enabled {
+		if c.RateLimit.Requests <= 0 || c.RateLimit.AuthRequests <= 0 {
+			return fmt.Errorf("RATE_LIMIT_REQUESTS and RATE_LIMIT_AUTH_REQUESTS must be greater than zero")
+		}
+		if c.RateLimit.Window <= 0 || c.RateLimit.AuthWindow <= 0 {
+			return fmt.Errorf("RATE_LIMIT_WINDOW and RATE_LIMIT_AUTH_WINDOW must be greater than zero")
+		}
+	}
+
+	if c.HTTP.BodyLimit <= 0 {
+		return fmt.Errorf("HTTP_BODY_LIMIT must be greater than zero")
 	}
 
 	return nil
+}
+
+func (s Security) hasWildcardOrigin() bool {
+	return slices.Contains(s.CORSAllowedOrigins, "*")
 }
 
 func getEnv(key, fallback string) string {
@@ -438,6 +593,26 @@ func getEnv(key, fallback string) string {
 		return fallback
 	}
 	return value
+}
+
+func getEnvList(key string) []string {
+	value, ok := os.LookupEnv(key)
+	if !ok || strings.TrimSpace(value) == "" {
+		return nil
+	}
+
+	parts := strings.Split(value, ",")
+	items := make([]string, 0, len(parts))
+	for _, part := range parts {
+		trimmed := strings.TrimSpace(part)
+		if trimmed != "" {
+			items = append(items, trimmed)
+		}
+	}
+	if len(items) == 0 {
+		return nil
+	}
+	return items
 }
 
 func getEnvInt(key string, fallback int) (int, error) {

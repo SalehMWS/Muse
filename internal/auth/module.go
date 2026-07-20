@@ -4,6 +4,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	auditapp "github.com/SalehMWS/Muse/internal/audit/application"
 	"github.com/SalehMWS/Muse/internal/auth/application"
 	httpdelivery "github.com/SalehMWS/Muse/internal/auth/delivery/http"
 	"github.com/SalehMWS/Muse/internal/auth/infrastructure/postgres"
@@ -16,7 +17,7 @@ type Module struct {
 	Middleware fiber.Handler
 }
 
-func New(pool *pgxpool.Pool, jwtCfg config.JWT, argonCfg config.Argon2) *Module {
+func New(pool *pgxpool.Pool, jwtCfg config.JWT, argonCfg config.Argon2, audit *auditapp.Recorder) *Module {
 	users := postgres.NewUserRepository(pool)
 	sessions := postgres.NewSessionRepository(pool)
 	hasher := security.NewArgon2Hasher(argonCfg)
@@ -29,7 +30,7 @@ func New(pool *pgxpool.Pool, jwtCfg config.JWT, argonCfg config.Argon2) *Module 
 	getCurrentUserUC := application.NewGetCurrentUserUseCase(users)
 
 	return &Module{
-		Handler:    httpdelivery.NewHandler(registerUC, loginUC, refreshUC, logoutUC, getCurrentUserUC),
+		Handler:    httpdelivery.NewHandler(registerUC, loginUC, refreshUC, logoutUC, getCurrentUserUC, audit),
 		Middleware: httpdelivery.RequireAuth(issuer),
 	}
 }

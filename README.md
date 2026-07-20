@@ -267,3 +267,24 @@ Request bodies are capped by `HTTP_BODY_LIMIT`, and read, write, and idle
 timeouts bound slow-client attacks (Fiber ships with none by default).
 `X-Forwarded-For` is trusted for the client IP only when `HTTP_TRUSTED_PROXIES`
 lists the proxies — otherwise a client could spoof its IP and sidestep its quota.
+
+An append-only audit trail records security-relevant events: registration,
+login, failed login, logout, Instagram connect and disconnect, and content
+publication.
+
+```
+GET /api/v1/audit/events?limit=50   the caller's own audit trail
+```
+
+Immutability is enforced in the database, not in application code — triggers on
+`audit_logs` reject every `UPDATE` and `DELETE`, so a compromised service
+account still cannot rewrite history. The table deliberately carries no foreign
+key to `users`: an audit record has to outlive the account it describes, and a
+cascade would erase the trail exactly when it matters most.
+
+Every event inherits the request's correlation and trace IDs, so an audit row
+joins directly to the logs and metrics for the same request. Content publication
+is recorded in the use case rather than the HTTP handler, so scheduled publishes
+driven by the worker are captured too. Failed logins are recorded without a user
+ID — nothing authenticated the request — so they surface in metrics and the
+table rather than in a caller's own trail.

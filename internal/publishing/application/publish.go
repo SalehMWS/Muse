@@ -9,6 +9,8 @@ import (
 
 	"github.com/google/uuid"
 
+	auditapp "github.com/SalehMWS/Muse/internal/audit/application"
+	auditdomain "github.com/SalehMWS/Muse/internal/audit/domain"
 	"github.com/SalehMWS/Muse/internal/publishing/domain"
 	"github.com/SalehMWS/Muse/internal/shared/metrics"
 )
@@ -20,9 +22,10 @@ type PublishUseCase struct {
 	repo     PublicationRepository
 	recorder *metrics.Publishing
 	business *metrics.Business
+	audit    *auditapp.Recorder
 }
 
-func NewPublishUseCase(accounts AccountReader, contents ContentReader, client PublishClient, repo PublicationRepository, recorder *metrics.Publishing, business *metrics.Business) *PublishUseCase {
+func NewPublishUseCase(accounts AccountReader, contents ContentReader, client PublishClient, repo PublicationRepository, recorder *metrics.Publishing, business *metrics.Business, audit *auditapp.Recorder) *PublishUseCase {
 	return &PublishUseCase{
 		accounts: accounts,
 		contents: contents,
@@ -30,7 +33,20 @@ func NewPublishUseCase(accounts AccountReader, contents ContentReader, client Pu
 		repo:     repo,
 		recorder: recorder,
 		business: business,
+		audit:    audit,
 	}
+}
+
+func (uc *PublishUseCase) recordAudit(ctx context.Context, in PublishInput, result auditdomain.Result, metadata map[string]string) {
+	userID := in.UserID
+	uc.audit.Record(ctx, auditapp.Entry{
+		UserID:       &userID,
+		Action:       auditdomain.ActionContentPublished,
+		Result:       result,
+		ResourceType: "content",
+		ResourceID:   in.ContentID.String(),
+		Metadata:     metadata,
+	})
 }
 
 type PublishInput struct {
@@ -80,6 +96,7 @@ func (uc *PublishUseCase) Execute(ctx context.Context, in PublishInput) (domain.
 		if _, err := uc.repo.Create(ctx, publication); err != nil {
 			return domain.Publication{}, err
 		}
+		uc.recordAudit(ctx, in, auditdomain.ResultFailure, map[string]string{"media_type": string(mediaType)})
 		return domain.Publication{}, fmt.Errorf("%w: %v", ErrPublishFailed, publishErr)
 	}
 
@@ -99,6 +116,10 @@ func (uc *PublishUseCase) Execute(ctx context.Context, in PublishInput) (domain.
 	}
 
 	uc.business.Record(metrics.EventPostPublished)
+	uc.recordAudit(ctx, in, auditdomain.ResultSuccess, map[string]string{
+		"media_type":  string(mediaType),
+		"platform_id": published.ID,
+	})
 
 	return created, nil
 }

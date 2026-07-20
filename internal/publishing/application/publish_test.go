@@ -35,7 +35,7 @@ func TestPublishUseCase_Image(t *testing.T) {
 			ContentType: "image",
 			Media:       []application.MediaItem{{URL: "https://cdn/a.jpg", MediaType: "image"}},
 		}},
-		client, repo, nil, nil,
+		client, repo, nil, nil, nil,
 	)
 
 	pub, err := uc.Execute(context.Background(), newPublishInput())
@@ -66,7 +66,7 @@ func TestPublishUseCase_Carousel(t *testing.T) {
 				{URL: "https://cdn/b.mp4", MediaType: "video"},
 			},
 		}},
-		client, &fakePublicationRepository{}, nil, nil,
+		client, &fakePublicationRepository{}, nil, nil, nil,
 	)
 
 	if _, err := uc.Execute(context.Background(), newPublishInput()); err != nil {
@@ -88,7 +88,7 @@ func TestPublishUseCase_ReelByContentType(t *testing.T) {
 			ContentType: "reel",
 			Media:       []application.MediaItem{{URL: "https://cdn/a.mp4", MediaType: "video"}},
 		}},
-		client, &fakePublicationRepository{}, nil, nil,
+		client, &fakePublicationRepository{}, nil, nil, nil,
 	)
 
 	if _, err := uc.Execute(context.Background(), newPublishInput()); err != nil {
@@ -103,7 +103,7 @@ func TestPublishUseCase_NoMedia(t *testing.T) {
 	uc := application.NewPublishUseCase(
 		fakeAccountReader{account: activeAccount()},
 		fakeContentReader{content: application.PublishableContent{ContentType: "image"}},
-		&recordingPublishClient{}, &fakePublicationRepository{}, nil, nil,
+		&recordingPublishClient{}, &fakePublicationRepository{}, nil, nil, nil,
 	)
 	if _, err := uc.Execute(context.Background(), newPublishInput()); !errors.Is(err, application.ErrNoMedia) {
 		t.Fatalf("Execute() error = %v, want %v", err, application.ErrNoMedia)
@@ -114,7 +114,7 @@ func TestPublishUseCase_AccountNotFound(t *testing.T) {
 	uc := application.NewPublishUseCase(
 		fakeAccountReader{err: application.ErrAccountNotFound},
 		fakeContentReader{},
-		&recordingPublishClient{}, &fakePublicationRepository{}, nil, nil,
+		&recordingPublishClient{}, &fakePublicationRepository{}, nil, nil, nil,
 	)
 	if _, err := uc.Execute(context.Background(), newPublishInput()); !errors.Is(err, application.ErrAccountNotFound) {
 		t.Fatalf("Execute() error = %v, want %v", err, application.ErrAccountNotFound)
@@ -129,7 +129,7 @@ func TestPublishUseCase_PublishFailureRecordsFailedPublication(t *testing.T) {
 			ContentType: "image",
 			Media:       []application.MediaItem{{URL: "https://cdn/a.jpg", MediaType: "image"}},
 		}},
-		&recordingPublishClient{failStage: "publish"}, repo, nil, nil,
+		&recordingPublishClient{failStage: "publish"}, repo, nil, nil, nil,
 	)
 
 	if _, err := uc.Execute(context.Background(), newPublishInput()); !errors.Is(err, application.ErrPublishFailed) {
@@ -146,7 +146,7 @@ func TestPublishUseCase_InvalidOverride(t *testing.T) {
 		fakeContentReader{content: application.PublishableContent{
 			Media: []application.MediaItem{{URL: "https://cdn/a.jpg", MediaType: "image"}},
 		}},
-		&recordingPublishClient{}, &fakePublicationRepository{}, nil, nil,
+		&recordingPublishClient{}, &fakePublicationRepository{}, nil, nil, nil,
 	)
 	in := newPublishInput()
 	in.MediaType = "story"

@@ -29,7 +29,7 @@ func newTestApp() (*fiber.App, *fakeUserRepository) {
 	logoutUC := application.NewLogoutUseCase(sessions)
 	meUC := application.NewGetCurrentUserUseCase(users)
 
-	handler := httpdelivery.NewHandler(registerUC, loginUC, refreshUC, logoutUC, meUC)
+	handler := httpdelivery.NewHandler(registerUC, loginUC, refreshUC, logoutUC, meUC, nil)
 
 	app := fiber.New()
 	httpdelivery.RegisterRoutes(app, handler, httpdelivery.RequireAuth(issuer))

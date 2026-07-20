@@ -1,0 +1,162 @@
+{
+  "uid": "novaflow-workers",
+  "title": "NovaFlow / Workers & Queue",
+  "tags": ["novaflow", "workers", "queue", "scheduler"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "time": { "from": "now-6h", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Queue depth",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "targets": [
+        {
+          "refId": "A",
+          "legendFormat": "{{queue}}",
+          "expr": "novaflow_worker_queue_depth{queue=\"novaflow:jobs\"}"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Dead-letter depth",
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 1 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "novaflow_worker_queue_depth{queue=\"novaflow:jobs:dead\"}"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Jobs in flight",
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "targets": [{ "refId": "A", "expr": "novaflow_worker_jobs_in_flight" }]
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Job success rate",
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "decimals": 2,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "orange", "value": 0.8 },
+              { "color": "green", "value": 0.95 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(rate(novaflow_worker_jobs_total{outcome=\"success\"}[15m])) / clamp_min(sum(rate(novaflow_worker_jobs_total{outcome=~\"success|failure\"}[15m])), 0.001)"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Job outcomes",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+      "fieldConfig": { "defaults": { "unit": "ops" }, "overrides": [] },
+      "targets": [
+        {
+          "refId": "A",
+          "legendFormat": "{{type}} {{outcome}}",
+          "expr": "sum by (type, outcome) (rate(novaflow_worker_jobs_total[5m]))"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "Job execution time",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
+      "targets": [
+        {
+          "refId": "A",
+          "legendFormat": "p50 {{type}}",
+          "expr": "histogram_quantile(0.50, sum by (le, type) (rate(novaflow_worker_job_duration_seconds_bucket[5m])))"
+        },
+        {
+          "refId": "B",
+          "legendFormat": "p95 {{type}}",
+          "expr": "histogram_quantile(0.95, sum by (le, type) (rate(novaflow_worker_job_duration_seconds_bucket[5m])))"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "Queue depth over time",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "targets": [
+        {
+          "refId": "A",
+          "legendFormat": "{{queue}}",
+          "expr": "novaflow_worker_queue_depth"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "type": "timeseries",
+      "title": "Scheduler drift and throughput",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "targets": [
+        {
+          "refId": "A",
+          "legendFormat": "p95 drift (s)",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(novaflow_scheduler_execution_drift_seconds_bucket[5m])))"
+        },
+        {
+          "refId": "B",
+          "legendFormat": "claimed/s",
+          "expr": "rate(novaflow_scheduler_schedules_claimed_total[5m])"
+        },
+        {
+          "refId": "C",
+          "legendFormat": "{{outcome}}/s",
+          "expr": "sum by (outcome) (rate(novaflow_scheduler_schedules_processed_total[5m]))"
+        },
+        {
+          "refId": "D",
+          "legendFormat": "tick errors/s",
+          "expr": "rate(novaflow_scheduler_tick_errors_total[5m])"
+        }
+      ]
+    }
+  ]
+}

@@ -20,7 +20,7 @@ import (
 func newTestApp(userID uuid.UUID, checker fakeContentChecker) (*fiber.App, *fakeScheduleRepository) {
 	repo := newFakeScheduleRepository()
 	handler := httpdelivery.NewHandler(
-		application.NewCreateScheduleUseCase(repo, fakeCronParser{}, checker),
+		application.NewCreateScheduleUseCase(repo, fakeCronParser{}, checker, nil),
 		application.NewListSchedulesUseCase(repo),
 		application.NewCancelScheduleUseCase(repo),
 	)

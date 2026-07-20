@@ -70,6 +70,9 @@ func run(ctx context.Context) error {
 
 	go container.Scheduler.Runner.Run(ctx)
 	go container.Worker.Pool.Run(ctx)
+	go container.Worker.ReportQueueDepth(ctx)
+
+	container.Health.MarkStarted()
 
 	serveErrors := make(chan error, 1)
 	go func() {
@@ -77,6 +80,7 @@ func run(ctx context.Context) error {
 		container.Logger.Info("http server starting",
 			zap.String("module", "api"),
 			zap.String("addr", addr),
+			zap.String("version", container.Config.App.Version),
 		)
 
 		if err := container.App.Listen(addr); err != nil {

@@ -14,6 +14,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/SalehMWS/Muse/internal/ai/application"
+	"github.com/SalehMWS/Muse/internal/shared/metrics"
 )
 
 const (
@@ -47,6 +48,7 @@ var (
 )
 
 type Config struct {
+	Provider  string
 	BaseURL   string
 	APIKey    string
 	Model     string
@@ -55,17 +57,19 @@ type Config struct {
 }
 
 type OpenAICompatibleProvider struct {
+	provider   string
 	baseURL    string
 	apiKey     string
 	modelName  string
 	maxTokens  int
 	logger     *zap.Logger
 	httpClient *http.Client
+	recorder   *metrics.AI
 }
 
 var _ application.LLMProvider = (*OpenAICompatibleProvider)(nil)
 
-func New(cfg Config, logger *zap.Logger) *OpenAICompatibleProvider {
+func New(cfg Config, logger *zap.Logger, recorder *metrics.AI) *OpenAICompatibleProvider {
 	if logger == nil {
 		logger = zap.NewNop()
 	}
@@ -80,17 +84,31 @@ func New(cfg Config, logger *zap.Logger) *OpenAICompatibleProvider {
 		maxTokens = defaultMaxTokens
 	}
 
+	provider := cfg.Provider
+	if provider == "" {
+		provider = "openai-compatible"
+	}
+
 	return &OpenAICompatibleProvider{
+		provider:   provider,
 		baseURL:    strings.TrimRight(cfg.BaseURL, "/"),
 		apiKey:     cfg.APIKey,
 		modelName:  cfg.Model,
 		maxTokens:  maxTokens,
 		logger:     logger,
 		httpClient: &http.Client{Timeout: timeout},
+		recorder:   recorder,
 	}
 }
 
 func (p *OpenAICompatibleProvider) GenerateCaptions(ctx context.Context, userPrompt string) (*application.CaptionResult, error) {
+	start := time.Now()
+	result, err := p.generateCaptions(ctx, userPrompt)
+	p.recorder.Request(p.provider, p.modelName, metrics.Outcome(err), time.Since(start))
+	return result, err
+}
+
+func (p *OpenAICompatibleProvider) generateCaptions(ctx context.Context, userPrompt string) (*application.CaptionResult, error) {
 	if strings.TrimSpace(userPrompt) == "" {
 		return nil, ErrEmptyPrompt
 	}
@@ -141,6 +159,9 @@ func (p *OpenAICompatibleProvider) GenerateCaptions(ctx context.Context, userPro
 	var parsed chatResponse
 	if err := json.Unmarshal(body, &parsed); err != nil {
 		return nil, fmt.Errorf("%w: decode envelope: %v", ErrInvalidResponse, err)
+	}
+	if parsed.Usage != nil {
+		p.recorder.Tokens(p.provider, p.modelName, parsed.Usage.PromptTokens, parsed.Usage.CompletionTokens)
 	}
 	if parsed.Error != nil && parsed.Error.Message != "" {
 		p.logger.Warn("ai provider returned an error object",
@@ -239,6 +260,10 @@ type chatResponse struct {
 		Message      chatMessage `json:"message"`
 		FinishReason string      `json:"finish_reason"`
 	} `json:"choices"`
+	Usage *struct {
+		PromptTokens     int `json:"prompt_tokens"`
+		CompletionTokens int `json:"completion_tokens"`
+	} `json:"usage"`
 	Error *struct {
 		Message string `json:"message"`
 		Type    string `json:"type"`

@@ -20,7 +20,7 @@ import (
 func newTestApp(userID uuid.UUID, accounts application.AccountReader, contents application.ContentReader) *fiber.App {
 	repo := &fakePublicationRepository{}
 	handler := httpdelivery.NewHandler(
-		application.NewPublishUseCase(accounts, contents, stubPublishClient{}, repo),
+		application.NewPublishUseCase(accounts, contents, stubPublishClient{}, repo, nil, nil),
 		application.NewListPublicationsUseCase(repo),
 	)
 

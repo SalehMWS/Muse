@@ -1,0 +1,145 @@
+{
+  "uid": "novaflow-business",
+  "title": "NovaFlow / Business & AI",
+  "tags": ["novaflow", "business", "ai", "knowledge"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "1m",
+  "time": { "from": "now-24h", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Posts published (24h)",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+      "fieldConfig": { "defaults": { "unit": "short", "decimals": 0 }, "overrides": [] },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(increase(novaflow_business_events_total{event=\"post_published\"}[24h]))"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Captions generated (24h)",
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+      "fieldConfig": { "defaults": { "unit": "short", "decimals": 0 }, "overrides": [] },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(increase(novaflow_business_events_total{event=\"caption_generated\"}[24h]))"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Schedules created (24h)",
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
+      "fieldConfig": { "defaults": { "unit": "short", "decimals": 0 }, "overrides": [] },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(increase(novaflow_business_events_total{event=\"schedule_created\"}[24h]))"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Documents ingested (24h)",
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 },
+      "fieldConfig": { "defaults": { "unit": "short", "decimals": 0 }, "overrides": [] },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(increase(novaflow_business_events_total{event=\"document_ingested\"}[24h]))"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Product events",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "targets": [
+        {
+          "refId": "A",
+          "legendFormat": "{{event}}",
+          "expr": "sum by (event) (increase(novaflow_business_events_total[1h]))"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "Publishing outcomes by media type",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "targets": [
+        {
+          "refId": "A",
+          "legendFormat": "{{media_type}} {{outcome}}",
+          "expr": "sum by (media_type, outcome) (increase(novaflow_publishing_publications_total[1h]))"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "AI tokens and latency",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "targets": [
+        {
+          "refId": "A",
+          "legendFormat": "{{kind}} tokens/h",
+          "expr": "sum by (kind) (increase(novaflow_ai_tokens_total[1h]))"
+        },
+        {
+          "refId": "B",
+          "legendFormat": "p95 latency (s)",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(novaflow_ai_request_duration_seconds_bucket[5m])))"
+        },
+        {
+          "refId": "C",
+          "legendFormat": "{{outcome}}/s",
+          "expr": "sum by (outcome) (rate(novaflow_ai_requests_total[5m]))"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "type": "timeseries",
+      "title": "Knowledge retrieval",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "targets": [
+        {
+          "refId": "A",
+          "legendFormat": "p95 search (s)",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(novaflow_knowledge_search_duration_seconds_bucket[5m])))"
+        },
+        {
+          "refId": "B",
+          "legendFormat": "p95 embed (s)",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(novaflow_knowledge_embedding_duration_seconds_bucket[5m])))"
+        },
+        {
+          "refId": "C",
+          "legendFormat": "queries {{outcome}}/s",
+          "expr": "sum by (outcome) (rate(novaflow_knowledge_queries_total[5m]))"
+        },
+        {
+          "refId": "D",
+          "legendFormat": "chunks indexed/h",
+          "expr": "increase(novaflow_knowledge_chunks_indexed_total[1h])"
+        }
+      ]
+    }
+  ]
+}

@@ -34,7 +34,7 @@ func newTestAppWithProvider(userID uuid.UUID, provider *fakeLLMProvider) *fiber.
 		application.NewArchiveUseCase(repo),
 		application.NewDuplicateUseCase(repo),
 		application.NewListUseCase(repo),
-		application.NewGenerateCaptionUseCase(repo, provider),
+		application.NewGenerateCaptionUseCase(repo, provider, nil),
 		application.NewAttachMediaUseCase(repo, mediaRepo),
 		application.NewListMediaUseCase(repo, mediaRepo),
 		application.NewDeleteMediaUseCase(repo, mediaRepo),

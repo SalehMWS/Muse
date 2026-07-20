@@ -9,6 +9,7 @@ import (
 
 	goredis "github.com/redis/go-redis/v9"
 
+	"github.com/SalehMWS/Muse/internal/shared/tracing"
 	"github.com/SalehMWS/Muse/internal/worker/application"
 	"github.com/SalehMWS/Muse/internal/worker/domain"
 )
@@ -44,6 +45,11 @@ func (b *Broker) EnsureGroup(ctx context.Context) error {
 }
 
 func (b *Broker) Enqueue(ctx context.Context, job domain.Job) error {
+	if job.TraceID == "" {
+		ids := tracing.FromContext(ctx)
+		job = job.WithTrace(ids.TraceID, ids.CorrelationID)
+	}
+
 	data, err := json.Marshal(job)
 	if err != nil {
 		return err
@@ -52,6 +58,22 @@ func (b *Broker) Enqueue(ctx context.Context, job domain.Job) error {
 		Stream: b.stream,
 		Values: map[string]any{jobField: data},
 	}).Err()
+}
+
+func (b *Broker) Depth(ctx context.Context) (int64, error) {
+	return b.client.XLen(ctx, b.stream).Result()
+}
+
+func (b *Broker) DeadLetterDepth(ctx context.Context) (int64, error) {
+	return b.client.XLen(ctx, b.dlq).Result()
+}
+
+func (b *Broker) Stream() string {
+	return b.stream
+}
+
+func (b *Broker) DeadLetterStream() string {
+	return b.dlq
 }
 
 func (b *Broker) DeadLetter(ctx context.Context, job domain.Job, reason string) error {

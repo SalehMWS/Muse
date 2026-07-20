@@ -29,6 +29,7 @@ type SearchHit struct {
 
 type VectorStore interface {
 	EnsureReady(ctx context.Context, dimension int) error
+	Ping(ctx context.Context) error
 	Upsert(ctx context.Context, records []VectorRecord) error
 	Search(ctx context.Context, userID uuid.UUID, embedding []float32, topK int) ([]SearchHit, error)
 	DeleteByDocument(ctx context.Context, userID, documentID uuid.UUID) error

@@ -16,13 +16,15 @@ const (
 const CurrentVersion = 1
 
 type Job struct {
-	ID          string          `json:"id"`
-	Type        JobType         `json:"type"`
-	Version     int             `json:"version"`
-	Payload     json.RawMessage `json:"payload"`
-	Attempt     int             `json:"attempt"`
-	MaxAttempts int             `json:"max_attempts"`
-	EnqueuedAt  time.Time       `json:"enqueued_at"`
+	ID            string          `json:"id"`
+	Type          JobType         `json:"type"`
+	Version       int             `json:"version"`
+	Payload       json.RawMessage `json:"payload"`
+	Attempt       int             `json:"attempt"`
+	MaxAttempts   int             `json:"max_attempts"`
+	EnqueuedAt    time.Time       `json:"enqueued_at"`
+	TraceID       string          `json:"trace_id,omitempty"`
+	CorrelationID string          `json:"correlation_id,omitempty"`
 }
 
 type PublishPayload struct {
@@ -49,6 +51,12 @@ func NewJob(jobType JobType, payload any, maxAttempts int) (Job, error) {
 		MaxAttempts: maxAttempts,
 		EnqueuedAt:  time.Now().UTC(),
 	}, nil
+}
+
+func (j Job) WithTrace(traceID, correlationID string) Job {
+	j.TraceID = traceID
+	j.CorrelationID = correlationID
+	return j
 }
 
 func (j Job) HasAttemptsLeft() bool {

@@ -78,7 +78,7 @@ func TestIngestAndQuery_RealPipeline(t *testing.T) {
 	userID := uuid.New()
 	ctx := context.Background()
 
-	ingest := application.NewIngestUseCase(repo, embedder, store, 50, 10)
+	ingest := application.NewIngestUseCase(repo, embedder, store, 50, 10, nil, nil)
 	doc, err := ingest.Execute(ctx, application.IngestInput{
 		UserID:  userID,
 		Title:   "Brand voice",
@@ -91,7 +91,7 @@ func TestIngestAndQuery_RealPipeline(t *testing.T) {
 		t.Fatalf("ingested doc = %+v, want indexed with chunks", doc)
 	}
 
-	query := application.NewQueryUseCase(embedder, store, 5)
+	query := application.NewQueryUseCase(embedder, store, 5, nil)
 	out, err := query.Execute(ctx, application.QueryInput{UserID: userID, Query: "fresh roasted coffee"})
 	if err != nil {
 		t.Fatalf("Query Execute() unexpected error: %v", err)
@@ -116,7 +116,7 @@ func TestIngestAndQuery_RealPipeline(t *testing.T) {
 func TestIngest_EmbeddingFailureMarksFailed(t *testing.T) {
 	repo := newFakeDocumentRepository()
 	userID := uuid.New()
-	uc := application.NewIngestUseCase(repo, errorEmbedder{}, vectorstore.NewMemoryStore(), 50, 10)
+	uc := application.NewIngestUseCase(repo, errorEmbedder{}, vectorstore.NewMemoryStore(), 50, 10, nil, nil)
 
 	if _, err := uc.Execute(context.Background(), application.IngestInput{UserID: userID, Content: "some text"}); !errors.Is(err, application.ErrEmbedding) {
 		t.Fatalf("Execute() error = %v, want %v", err, application.ErrEmbedding)
@@ -129,7 +129,7 @@ func TestIngest_EmbeddingFailureMarksFailed(t *testing.T) {
 }
 
 func TestIngest_EmptyContent(t *testing.T) {
-	uc := application.NewIngestUseCase(newFakeDocumentRepository(), embedding.NewLocalEmbedder(64), vectorstore.NewMemoryStore(), 50, 10)
+	uc := application.NewIngestUseCase(newFakeDocumentRepository(), embedding.NewLocalEmbedder(64), vectorstore.NewMemoryStore(), 50, 10, nil, nil)
 	if _, err := uc.Execute(context.Background(), application.IngestInput{UserID: uuid.New(), Content: "   "}); !errors.Is(err, application.ErrEmptyContent) {
 		t.Fatalf("Execute() error = %v, want %v", err, application.ErrEmptyContent)
 	}

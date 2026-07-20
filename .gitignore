@@ -25,3 +25,6 @@ configs/.env
 # Coverage
 *.out
 coverage.html
+
+# Nix / direnv
+.direnv/

@@ -26,6 +26,24 @@ touching business logic.
 - Go 1.25+
 - Docker & Docker Compose
 - `sqlc`, `goose`, `golangci-lint` (for local development)
+- A C compiler, only for `go test -race`
+
+## Development environment
+
+A Nix flake pins the whole toolchain — Go, a C compiler, `golangci-lint`,
+`sqlc`, `goose`, and `delve` — so every checkout builds against the same
+versions.
+
+```bash
+nix develop          # enter the shell manually
+echo "use flake" > .envrc && direnv allow   # or activate it automatically on cd
+```
+
+Everything works without the flake too, as long as the tools above are on
+`PATH`. Note that Go enables cgo by default: without a C compiler installed,
+`go build` fails on `runtime/cgo` and `go test -race` cannot run at all. Either
+enter the flake shell or set `CGO_ENABLED=0`, which builds fine but disables the
+race detector.
 
 ## Getting started
 

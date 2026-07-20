@@ -43,8 +43,9 @@ async function proxy(request: Request, context: RouteContext): Promise<Response>
   }
 
   const payload = await response.text();
+  const nullBodyStatus = response.status === 204 || response.status === 205 || response.status === 304;
 
-  return new NextResponse(payload, {
+  return new NextResponse(nullBodyStatus || payload === "" ? null : payload, {
     status: response.status,
     headers: { "Content-Type": response.headers.get("Content-Type") ?? "application/json" },
   });

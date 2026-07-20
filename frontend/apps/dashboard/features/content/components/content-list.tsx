@@ -1,6 +1,7 @@
 "use client";
 
 import { FileText } from "lucide-react";
+import Link from "next/link";
 import { useState } from "react";
 
 import { EmptyState } from "@/components/shared/empty-state";
@@ -87,7 +88,14 @@ export function ContentList() {
               <Card interactive>
                 <CardHeader className="flex-row items-start justify-between gap-4 pb-3">
                   <div className="flex min-w-0 flex-col gap-1">
-                    <CardTitle className="truncate">{content.title}</CardTitle>
+                    <CardTitle className="truncate">
+                      <Link
+                        href={`/dashboard/content/${content.id}`}
+                        className="underline-offset-4 hover:underline"
+                      >
+                        {content.title}
+                      </Link>
+                    </CardTitle>
                     <div className="flex flex-wrap items-center gap-2">
                       <Badge variant={statusVariant[content.status] ?? "default"}>{content.status}</Badge>
                       <span className="text-xs text-muted-foreground">{content.contentType}</span>

@@ -1,20 +1,36 @@
 import type { Metadata } from "next";
-import { Construction } from "lucide-react";
 
-import { EmptyState } from "@/components/shared/empty-state";
 import { PageHeader } from "@/components/shared/page-header";
+import { DocumentList } from "@/features/knowledge/components/document-list";
+import { IngestDocumentForm } from "@/features/knowledge/components/ingest-document-form";
+import { KnowledgeSearch } from "@/features/knowledge/components/knowledge-search";
 
 export const metadata: Metadata = { title: "Knowledge | NovaFlow" };
 
 export default function KnowledgePage() {
   return (
     <>
-      <PageHeader title="Knowledge" />
-      <EmptyState
-        icon={Construction}
-        title="Not built yet"
-        description="The knowledge API is live on the backend, but this screen has not been built. Content and authentication are the finished slices."
+      <PageHeader
+        title="Knowledge"
+        description="The documents NovaFlow retrieves from when it writes captions for you."
       />
+
+      <div className="flex flex-col gap-8">
+        <KnowledgeSearch />
+
+        <section className="flex flex-col gap-4">
+          <div className="flex flex-col gap-1">
+            <h2 className="text-lg font-semibold tracking-tight">Documents</h2>
+            <p className="text-sm text-muted-foreground">
+              Everything indexed for retrieval. Documents are chunked and embedded after they are
+              added.
+            </p>
+          </div>
+
+          <IngestDocumentForm />
+          <DocumentList />
+        </section>
+      </div>
     </>
   );
 }

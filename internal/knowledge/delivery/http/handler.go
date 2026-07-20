@@ -112,7 +112,7 @@ func mapError(err error) error {
 	switch {
 	case errors.Is(err, application.ErrDocumentNotFound):
 		return apperrors.NewNotFound(err.Error())
-	case errors.Is(err, application.ErrEmptyContent):
+	case errors.Is(err, application.ErrEmptyContent), errors.Is(err, application.ErrEmptyQuery):
 		return apperrors.NewValidation(err.Error())
 	case errors.Is(err, application.ErrEmbedding), errors.Is(err, application.ErrVectorStore):
 		return apperrors.New(apperrors.CodeExternalAPI, err.Error())

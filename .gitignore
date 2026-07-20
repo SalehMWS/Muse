@@ -28,3 +28,9 @@ coverage.html
 
 # Nix / direnv
 .direnv/
+
+# Frontend
+frontend/docs/
+node_modules/
+.next/
+next-env.d.ts

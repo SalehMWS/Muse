@@ -28,6 +28,8 @@
               delve
               postgresql_17
               redis
+              nodejs_22
+              pnpm
             ];
 
             shellHook = ''

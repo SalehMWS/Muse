@@ -6,6 +6,8 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
+
+	"github.com/SalehMWS/Muse/internal/shared/metrics"
 )
 
 const defaultTopK = 5
@@ -14,13 +16,14 @@ type QueryUseCase struct {
 	embedder Embedder
 	store    VectorStore
 	topK     int
+	recorder *metrics.Knowledge
 }
 
-func NewQueryUseCase(embedder Embedder, store VectorStore, topK int) *QueryUseCase {
+func NewQueryUseCase(embedder Embedder, store VectorStore, topK int, recorder *metrics.Knowledge) *QueryUseCase {
 	if topK <= 0 {
 		topK = defaultTopK
 	}
-	return &QueryUseCase{embedder: embedder, store: store, topK: topK}
+	return &QueryUseCase{embedder: embedder, store: store, topK: topK, recorder: recorder}
 }
 
 type QueryInput struct {
@@ -47,16 +50,21 @@ func (uc *QueryUseCase) Execute(ctx context.Context, in QueryInput) (QueryOutput
 
 	embeddings, err := uc.embedder.Embed(ctx, []string{query})
 	if err != nil {
+		uc.recorder.Queried(metrics.OutcomeFailure, 0)
 		return QueryOutput{}, fmt.Errorf("%w: %v", ErrEmbedding, err)
 	}
 	if len(embeddings) == 0 {
+		uc.recorder.Queried(metrics.OutcomeFailure, 0)
 		return QueryOutput{}, fmt.Errorf("%w: no query embedding produced", ErrEmbedding)
 	}
 
 	hits, err := uc.store.Search(ctx, in.UserID, embeddings[0], topK)
 	if err != nil {
+		uc.recorder.Queried(metrics.OutcomeFailure, 0)
 		return QueryOutput{}, fmt.Errorf("%w: %v", ErrVectorStore, err)
 	}
+
+	uc.recorder.Queried(metrics.OutcomeSuccess, len(hits))
 
 	return QueryOutput{Hits: hits, Context: buildContext(hits)}, nil
 }

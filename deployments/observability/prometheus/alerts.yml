@@ -1,0 +1,94 @@
+groups:
+  - name: novaflow-availability
+    rules:
+      - alert: ApiDown
+        expr: up{job="novaflow-api"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: NovaFlow API is not being scraped
+          description: Prometheus cannot reach the API /metrics endpoint.
+
+      - alert: PostgresPoolExhausted
+        expr: novaflow_postgres_connections_acquired >= novaflow_postgres_connections_max
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: Postgres connection pool is saturated
+          description: Every pooled connection has been checked out for two minutes.
+
+  - name: novaflow-workers
+    rules:
+      - alert: DeadLetterQueueGrowing
+        expr: increase(novaflow_worker_jobs_total{outcome="dead_lettered"}[15m]) > 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: Jobs are being dead-lettered
+          description: At least one job exhausted its retries in the last 15 minutes.
+
+      - alert: QueueBacklog
+        expr: novaflow_worker_queue_depth{queue="novaflow:jobs"} > 100
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: Job queue backlog is growing
+          description: The job stream has held more than 100 entries for ten minutes.
+
+      - alert: WorkerPanics
+        expr: increase(novaflow_worker_panics_recovered_total[15m]) > 0
+        labels:
+          severity: critical
+        annotations:
+          summary: A job handler panicked
+          description: The worker pool recovered a panic while executing a job.
+
+  - name: novaflow-api-quality
+    rules:
+      - alert: HighServerErrorRate
+        expr: |
+          sum(rate(novaflow_http_requests_total{status=~"5.."}[5m]))
+            / sum(rate(novaflow_http_requests_total[5m])) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: More than 5% of requests are failing
+          description: The API 5xx ratio has exceeded five percent for five minutes.
+
+      - alert: ApiLatencyBudgetBurn
+        expr: histogram_quantile(0.95, sum by (le) (rate(novaflow_http_request_duration_seconds_bucket[5m]))) > 0.3
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: API p95 latency exceeds the 300ms budget
+          description: docs/019 sets a 300ms API response budget.
+
+  - name: novaflow-integrations
+    rules:
+      - alert: InstagramPublishFailures
+        expr: |
+          sum(rate(novaflow_publishing_publications_total{outcome="failure"}[15m]))
+            / clamp_min(sum(rate(novaflow_publishing_publications_total[15m])), 0.001) > 0.2
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: Instagram publishing failure rate is high
+          description: More than 20% of publish attempts failed over the last 15 minutes.
+
+      - alert: AiProviderFailures
+        expr: |
+          sum(rate(novaflow_ai_requests_total{outcome="failure"}[15m]))
+            / clamp_min(sum(rate(novaflow_ai_requests_total[15m])), 0.001) > 0.2
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: LLM provider failure rate is high
+          description: More than 20% of caption generations failed over the last 15 minutes.

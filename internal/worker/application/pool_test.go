@@ -12,7 +12,7 @@ import (
 func newTestPool(broker Broker, handler Handler) *Pool {
 	dispatcher := NewDispatcher()
 	dispatcher.Register(domain.TypeInstagramPublish, handler)
-	return NewPool(broker, dispatcher, nil, 1, time.Millisecond)
+	return NewPool(broker, dispatcher, nil, PoolOptions{Workers: 1, Block: time.Millisecond})
 }
 
 func job(attempt, maxAttempts int) domain.Job {
@@ -70,7 +70,7 @@ func TestPool_ExhaustedDeadLetters(t *testing.T) {
 func TestPool_UnknownTypeIsFailure(t *testing.T) {
 	broker := &fakeBroker{}
 	dispatcher := NewDispatcher()
-	pool := NewPool(broker, dispatcher, nil, 1, time.Millisecond)
+	pool := NewPool(broker, dispatcher, nil, PoolOptions{Workers: 1, Block: time.Millisecond})
 
 	pool.handle(context.Background(), Delivery{Job: domain.Job{ID: "x", Type: "unknown", Attempt: 2, MaxAttempts: 3}, Reference: "m1"})
 

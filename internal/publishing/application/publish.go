@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/SalehMWS/Muse/internal/publishing/domain"
+	"github.com/SalehMWS/Muse/internal/shared/metrics"
 )
 
 type PublishUseCase struct {
@@ -17,10 +18,19 @@ type PublishUseCase struct {
 	contents ContentReader
 	client   PublishClient
 	repo     PublicationRepository
+	recorder *metrics.Publishing
+	business *metrics.Business
 }
 
-func NewPublishUseCase(accounts AccountReader, contents ContentReader, client PublishClient, repo PublicationRepository) *PublishUseCase {
-	return &PublishUseCase{accounts: accounts, contents: contents, client: client, repo: repo}
+func NewPublishUseCase(accounts AccountReader, contents ContentReader, client PublishClient, repo PublicationRepository, recorder *metrics.Publishing, business *metrics.Business) *PublishUseCase {
+	return &PublishUseCase{
+		accounts: accounts,
+		contents: contents,
+		client:   client,
+		repo:     repo,
+		recorder: recorder,
+		business: business,
+	}
 }
 
 type PublishInput struct {
@@ -52,7 +62,9 @@ func (uc *PublishUseCase) Execute(ctx context.Context, in PublishInput) (domain.
 	caption := buildCaption(content.Caption, content.Hashtags)
 	cred := Credential{InstagramUserID: account.InstagramUserID, AccessToken: account.AccessToken}
 
+	start := time.Now()
 	published, publishErr := uc.publish(ctx, cred, mediaType, content, caption)
+	uc.recorder.Published(string(mediaType), metrics.Outcome(publishErr), time.Since(start))
 
 	publication := domain.Publication{
 		ID:                 uuid.New(),
@@ -81,7 +93,14 @@ func (uc *PublishUseCase) Execute(ctx context.Context, in PublishInput) (domain.
 	}
 	publication.ResponseJSON = marshalJSON(map[string]string{"media_id": published.ID, "permalink": published.Permalink})
 
-	return uc.repo.Create(ctx, publication)
+	created, err := uc.repo.Create(ctx, publication)
+	if err != nil {
+		return domain.Publication{}, err
+	}
+
+	uc.business.Record(metrics.EventPostPublished)
+
+	return created, nil
 }
 
 func (uc *PublishUseCase) publish(ctx context.Context, cred Credential, mediaType domain.MediaType, content PublishableContent, caption string) (PublishedMedia, error) {

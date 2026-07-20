@@ -37,7 +37,7 @@ func TestPublishClient_ImageAndPublish(t *testing.T) {
 	server := httptest.NewServer(mux)
 	defer server.Close()
 
-	client := meta.NewPublishClient(server.URL, 0)
+	client := meta.NewPublishClient(server.URL, 0, nil)
 	cred := application.Credential{InstagramUserID: "123", AccessToken: "tok"}
 
 	container, err := client.CreateImageContainer(context.Background(), cred, "https://cdn/a.jpg", "caption")
@@ -67,7 +67,7 @@ func TestPublishClient_Error(t *testing.T) {
 	server := httptest.NewServer(mux)
 	defer server.Close()
 
-	client := meta.NewPublishClient(server.URL, 0)
+	client := meta.NewPublishClient(server.URL, 0, nil)
 	cred := application.Credential{InstagramUserID: "123", AccessToken: "tok"}
 
 	_, err := client.CreateImageContainer(context.Background(), cred, "bad", "caption")

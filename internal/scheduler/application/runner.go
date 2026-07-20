@@ -7,6 +7,8 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/SalehMWS/Muse/internal/scheduler/domain"
+	"github.com/SalehMWS/Muse/internal/shared/metrics"
+	"github.com/SalehMWS/Muse/internal/shared/tracing"
 )
 
 const (
@@ -21,9 +23,10 @@ type Runner struct {
 	logger    *zap.Logger
 	interval  time.Duration
 	batchSize int32
+	recorder  *metrics.Scheduler
 }
 
-func NewRunner(repo ScheduleRepository, publisher Publisher, cron CronParser, logger *zap.Logger, interval time.Duration, batchSize int32) *Runner {
+func NewRunner(repo ScheduleRepository, publisher Publisher, cron CronParser, logger *zap.Logger, interval time.Duration, batchSize int32, recorder *metrics.Scheduler) *Runner {
 	if logger == nil {
 		logger = zap.NewNop()
 	}
@@ -40,6 +43,7 @@ func NewRunner(repo ScheduleRepository, publisher Publisher, cron CronParser, lo
 		logger:    logger,
 		interval:  interval,
 		batchSize: batchSize,
+		recorder:  recorder,
 	}
 }
 
@@ -60,17 +64,32 @@ func (r *Runner) Run(ctx context.Context) {
 }
 
 func (r *Runner) Tick(ctx context.Context) {
-	due, err := r.repo.ClaimDue(ctx, time.Now(), r.batchSize)
+	start := time.Now()
+
+	due, err := r.repo.ClaimDue(ctx, start, r.batchSize)
 	if err != nil {
+		r.recorder.TickFailed(time.Since(start))
 		r.logger.Error("scheduler: claim due schedules", zap.Error(err))
 		return
 	}
+
+	r.recorder.TickCompleted(len(due), time.Since(start))
+
 	for _, schedule := range due {
 		r.process(ctx, schedule)
 	}
 }
 
 func (r *Runner) process(ctx context.Context, schedule domain.Schedule) {
+	ctx = tracing.WithIDs(ctx, tracing.IDs{
+		RequestID:     schedule.ID.String(),
+		CorrelationID: schedule.ID.String(),
+		TraceID:       tracing.NewTraceID(),
+		SpanID:        tracing.NewSpanID(),
+	})
+
+	drift := time.Since(schedule.ScheduledFor)
+
 	cmd := PublishCommand{
 		UserID:             schedule.UserID,
 		ContentID:          schedule.ContentID,
@@ -79,9 +98,12 @@ func (r *Runner) process(ctx context.Context, schedule domain.Schedule) {
 	}
 
 	if err := r.publisher.Publish(ctx, cmd); err != nil {
+		r.recorder.Processed(metrics.OutcomeFailure, drift)
 		r.handleFailure(ctx, schedule, err)
 		return
 	}
+
+	r.recorder.Processed(metrics.OutcomeSuccess, drift)
 
 	if schedule.IsRecurring() {
 		next, err := r.cron.Next(*schedule.CronExpression, schedule.Timezone, time.Now())

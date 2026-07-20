@@ -65,8 +65,8 @@ func newTestApp(userID uuid.UUID) *fiber.App {
 	embedder := embedding.NewLocalEmbedder(256)
 	store := vectorstore.NewMemoryStore()
 	handler := httpdelivery.NewHandler(
-		application.NewIngestUseCase(repo, embedder, store, 50, 10),
-		application.NewQueryUseCase(embedder, store, 5),
+		application.NewIngestUseCase(repo, embedder, store, 50, 10, nil, nil),
+		application.NewQueryUseCase(embedder, store, 5, nil),
 		application.NewListDocumentsUseCase(repo),
 		application.NewDeleteDocumentUseCase(repo, store),
 	)

@@ -6,6 +6,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"go.uber.org/zap"
 
+	"github.com/SalehMWS/Muse/internal/shared/authcontext"
 	"github.com/SalehMWS/Muse/internal/shared/logger"
 	"github.com/SalehMWS/Muse/internal/shared/response"
 )
@@ -14,11 +15,8 @@ func RequestLogger(base *zap.Logger) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		start := time.Now()
 
-		requestID := GetRequestID(c)
-		scoped := base.With(
-			zap.String("request_id", requestID),
-			zap.String("module", "http"),
-		)
+		ids := GetIDs(c)
+		scoped := base.With(append(ids.Fields(), zap.String("module", "http"))...)
 
 		ctx := logger.WithContext(c.UserContext(), scoped)
 		c.SetUserContext(ctx)
@@ -30,12 +28,18 @@ func RequestLogger(base *zap.Logger) fiber.Handler {
 			status = response.StatusFromError(err)
 		}
 
-		fields := []zap.Field{
-			zap.String("request_id", requestID),
+		fields := append(ids.Fields(),
 			zap.String("method", c.Method()),
 			zap.String("path", c.Path()),
+			zap.String("route", routeLabel(c)),
 			zap.Int("status", status),
 			zap.Duration("duration", time.Since(start)),
+			zap.String("ip", c.IP()),
+			zap.String("user_agent", c.Get(fiber.HeaderUserAgent)),
+		)
+
+		if userID, ok := authcontext.UserID(c); ok {
+			fields = append(fields, zap.String("user_id", userID.String()))
 		}
 
 		switch {
